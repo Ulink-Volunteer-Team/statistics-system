@@ -1,133 +1,143 @@
+import ON_DEATH from "death";
 import express from 'express';
-import { Database } from 'node-sqlite3-wasm';
+import DatabaseWrapper from "./libs/sqlite-wrapper";
 import bodyParser from 'body-parser';
 import { handshake, SessionManger } from './libs/session-manager';
 import { AuthenticationManager } from './libs/authentication-manager';
+import { StudentDBManager } from './libs/student-db-manager';
 
+ON_DEATH(() => {
+    console.log("Shutting down server ...");
+    process.exit(0);
+});
+
+const db = new DatabaseWrapper("database", "./", { info: console.log, error: console.error });
 const sessionManager = new SessionManger();
+const studentDBManager = new StudentDBManager(db);
+const authenticationManager = new AuthenticationManager(db);
+
+const sessionUserIDMap = new Map<string, string>();
+
 const app = express();
-const port = 20090;
+const port = parseInt(process.env.PORT || "3000");
 const API_VERSION = "0.0.1";
 
-// app.use(bodyParser.json());
+app.use(bodyParser.json());
 
-// // Connect to SQLite database
-// const db = new Database('./students.db')
-// console.log('Connected to the SQLite database.');
-// // Create table if it doesn't exist
-// db.run(`CREATE TABLE IF NOT EXISTS students (
-//     id INTEGER PRIMARY KEY,
-//     name TEXT NOT NULL,
-//     age INTEGER NOT NULL,
-//     score REAL NOT NULL
-// )`);
+app.post('/handshake', (req, res) => {
+    const userPublicKey = req.body.userPublicKey;
+    const ip = req.body.ip;
+    res.status(200).json({
+        success: true,
+        api_version: API_VERSION,
+        data: handshake(sessionManager, userPublicKey, ip)
+    });
+});
 
-// type Student = {
-//     id: number;
-//     name: string;
-//     age: number;
-//     score: number;
-// };
+app.post('/sign-in', async (req, res) => {
+    try {
+        const { id, password } = sessionManager.decryptClientData(req.body.data, req.body.session);
+        if (!id || !password) throw new Error('Missing id or password');
+        const token = await authenticationManager.login(id, password);
+        sessionUserIDMap.set(req.body.session, id);
+        res.status(200).json({
+            success: true,
+            data: sessionManager.encryptClientData({ token }, req.body.session)
+        });
+    }
+    catch (e) {
+        console.log(e);
+        res.status(401).json({
+            success: false,
+            msg: String(e)
+        });
+    }
+});
 
-// // Function to update student in the database (SQL injection protection)
-// function updateStudent(student: Student) {
-//     const query = `UPDATE students SET name = ?, age = ?, score = ? WHERE id = ?`;
-//     return db.run(query, [student.name, student.age, student.score, student.id]);
-// }
+app.post('/sign-up', async (req, res) => {
+    try {
+        const { username, password, permissions } = sessionManager.decryptClientData(req.body.data, req.body.session);
+        if (!username || !password || !permissions) throw new Error('Something is missing');
+        await authenticationManager.addUser(username, password, permissions);
+        res.status(200).json({
+            success: true
+        });
+    }
+    catch (e) {
+        console.log(e);
+        res.status(401).json({
+            success: false,
+            msg: String(e)
+        });
+    }
+});
 
-// function addStudent(student: Student) {
-//     const query = `INSERT INTO students (name, age, score) VALUES (?, ?, ?)`;
-//     return db.run(query, [student.name, student.age, student.score]);
-// }
+app.post('/close', (req, res) => {
+    sessionManager.closeSession(req.body.session);
+    res.status(200).json({
+        success: true
+    });
+});
 
-// app.post('handshake', (req, res) => {
-//     const userPublicKey = req.body.userPublicKey;
-//     const ip = req.body.ip;
-//     res.status(200).json({
-//         success: true,
-//         api_version: API_VERSION,
-//         data: handshake(sessionManager, userPublicKey, ip)
-//     });
-// });
+app.post('/get-students', (req, res) => {
+    try {
+        const sessionID = req.body.session;
+        if (!sessionID) throw new Error('Missing session');
+        const { token, limit } = sessionManager.decryptClientData(req.body.data, sessionID);
 
-// // POST route to update a student
-// app.post('/db-update-student', (req, res) => {
-//     const student = req.body;
+        const userId = sessionUserIDMap.get(sessionID);
+        if (!userId) throw new Error('Fail to find the session user');
 
-//     // Validate input
-//     if (Number.isInteger(student.id) || !student.name || !student.age || Number.isInteger(student.score)) {
-//         res.status(400).json({ success: false, message: 'Invalid input data' });
-//     }
-
-//     console.log(`Updating student with ID ${student.id}`);
-
-//     try {
-//         // Update the student in the database
-//         const result = updateStudent(student);
-
-//         if (result.changes > 0) {
-//             res.json({ success: true, message: `Student with ID ${student.id} updated successfully` });
-//             console.log(`Student with ID ${student.id} updated successfully`);
-//         } else {
-//             res.json({ success: false, message: `No student found with ID ${student.id}` });
-//             console.log(`No student found with ID ${student.id}`);
-//         }
-
-//     }
-//     catch (err) {
-//         res.status(500).json({ success: false, message: `Database error: ${err.message}` });
-//         console.log(`Database error: ${err.message}`);
-//     }
-// });
-
-// app.post('/db-add-student', (req, res) => {
-//     const student = req.body;
-
-//     // Validate input
-//     if (!student.name || !student.age || !student.score) {
-//         res.status(400).json({ success: false, message: 'Invalid input data' });
-//     }
-
-//     console.log(`Adding student with ID ${student.id}`);
-
-//     try {
-//         // Add the student to the database
-//         const result = addStudent(student);
-
-//         if (result.changes > 0) {
-//             res.json({ success: true, message: `Student with ID ${student.id} added successfully` });
-//             console.log(`Student with ID ${student.id} added successfully`);
-//         } else {
-//             res.json({ success: false, message: `Student with ID ${student.id} already exists` });
-//             console.log(`Student with ID ${student.id} already exists`);
-//         }
-
-//     }
-//     catch (err) {
-//         res.status(500).json({ success: false, message: `Database error: ${err.message}` });
-//         console.log(`Database error: ${err.message}`);
-//     }
-// })
-
-// // Placeholder for future authentication (implement later)
-// app.get('/auth', (req, res) => {
-//     res.status(501).send("Authentication API: Not yet implemented");
-//     console.log(`Authentication API: Not yet implemented (requested by ${req.ip})`);
-// });
-
-// app.use((req, res) => {
-//     res.status(404).send(`Path not found: ${req.url}`);
-//     console.log(`Path not found: ${req.url} (requested by ${req.ip})`);
-// });
+        if (!token) throw new Error('Missing token');
+        if (!authenticationManager.verifyToken(userId, token)) throw new Error('Invalid token');
 
 
-// // Start the Express server
-// app.listen(port, '0.0.0.0', () => {
-//     console.log(`Server running at ${port} at http`);
-// });
+        const students = studentDBManager.getStudents(limit || 10);
+        res.status(200).json({
+            success: true,
+            data: sessionManager.encryptClientData(JSON.stringify(students), sessionID)
+        });
+    }
+    catch (e) {
+        console.log(e);
+        res.status(401).json({
+            success: false
+        });
+    }
+});
 
-(async () => {const inst = new AuthenticationManager();
-if(!inst.haveUser('admin')) await inst.addUser('admin', 'password1');
-console.log(await inst.haveMatchingUser('admin', 'password'));})()
+app.post('/add-student', (req, res) => {
+    try {
+        const sessionID = req.body.session;
+        if (!sessionID) throw new Error('Missing session');
+        const { token, student } = sessionManager.decryptClientData(req.body.data, sessionID);
 
-//inst.updatePassword('admin', 'password1');
+        const userId = sessionUserIDMap.get(sessionID);
+        if (!userId) throw new Error('Fail to find the session user');
+
+        if (!token) throw new Error('Missing token');
+        if (!authenticationManager.verifyToken(userId, token)) throw new Error('Invalid token');
+
+        if (!student.id) throw new Error('Missing id');
+        if (!student.name) throw new Error('Missing name');
+
+        studentDBManager.addStudent({
+            id: student.id,
+            name: student.name
+        });
+        res.status(200).json({
+            success: true
+        });
+    }
+    catch (e) {
+        console.log(e);
+        res.status(401).json({
+            success: false
+        });
+    }
+});
+
+
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server is running at ${port}`);
+});

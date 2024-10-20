@@ -5,9 +5,12 @@ module.exports = {
   root: true,
   'extends': [
     'eslint:recommended',
+    "plugin:@typescript-eslint/recommended",
+    "plugin:prettier/recommended"
   ],
   parserOptions: {
-    ecmaVersion: 'latest'
+    ecmaVersion: 'latest',
+    sourceType: "module",
   },
-  ignorePatterns: ['dist/*', 'node_modules/*', '*.cjs'],
+  ignorePatterns: ['dist/*', 'node_modules/*', '*.cjs', '.eslint.cjs'],
 }

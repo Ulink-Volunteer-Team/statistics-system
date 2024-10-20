@@ -1,4 +1,5 @@
-import crypto from "crypto"
+import crypto from "crypto";
+import jwt from "jsonwebtoken";
 
 export function generateAes256Password(): string {
     const key = crypto.randomBytes(32).toString('hex');
@@ -21,6 +22,7 @@ export function encryptAes256(data: string, password: string): string {
     const encrypted = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
     return encrypted.toString('base64');
 }
+
 
 export function decryptAes256(encrypted: string, password: string): string {
     const { key, iv } = decodeAes256Password(password);

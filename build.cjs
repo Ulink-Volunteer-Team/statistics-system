@@ -1,20 +1,23 @@
 const esbuild = require("esbuild");
 const { spawn } = require("child_process");
+const outFile = "dist/index.cjs";
+const ON_DEATH = require("death");
 
 const options = {
 	entryPoints: ["src/index.ts"],
 	bundle: true,
-	outfile: "dist/index.js",
+	outfile: outFile,
 	platform: "node",
 	target: ["node16"],
 	format: "cjs",
+	minify: process.argv[2] === "prod",
 };
 
 esbuild
 	.build(options)
 	.then(() => {
 		if (process.argv[2] !== "dev") return;
-		const child = spawn("node dist/index.js", {
+		const child = spawn("node " + outFile, {
 			shell: true,
 			stdio: ["pipe", "pipe", "pipe"],
 		});
@@ -22,8 +25,13 @@ esbuild
 		child.stdout.pipe(process.stdout);
 		child.stderr.pipe(process.stderr);
 
-		child.on("close", (code) => {
-			console.log(`- Child process exited with code ${code} -`);
+		ON_DEATH(() => {
+			child.kill();
+		});
+
+		child.on("exit", (code) => {
+			console.log(`\n- Child process exited with code ${code} -`);
+			process.exit(code);
 		});
 	})
 	.catch(() => {
