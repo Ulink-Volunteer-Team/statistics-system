@@ -134,6 +134,21 @@ const addStudentState = await post("/add-student", {
 });
 console.log(`Add student ${addStudentState.success ? "successful" : "failed"}\n`);
 
-post("/close", {
-    session: id
-})
+const addStudentBulkState = await post("/add-student-bulk", {
+    session: id,
+    data: encryptAes256(JSON.stringify({
+        token: token,
+        students: [
+            {
+                name: "test1",
+                id: "test-student1@example.com"
+            },
+            {
+                name: "test2",
+            }
+        ]
+    }), key)
+});
+console.log(`Add student bulk ${addStudentBulkState.success ? "successful" : "failed"}\n`);
+
+console.log(`Close session ${(await post("/close", { session: id })).success ? "successful" : "failed"}`);

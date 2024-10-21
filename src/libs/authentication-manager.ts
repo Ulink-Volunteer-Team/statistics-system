@@ -53,7 +53,7 @@ export class AuthenticationManager {
      * @returns Whether a matching user is found
      */
     async haveMatchingUser(id: string, password: string): Promise<boolean> {
-        const result = this.db.select<UserAccountType>(this.tableName,[{ key: 'id', operator: '=', compared: id }]);
+        const result = await this.db.select<UserAccountType>(this.tableName,[{ key: 'id', operator: '=', compared: id }]);
         if (result.length === 0) return false;
 
         const user = result[0];
@@ -107,8 +107,8 @@ export class AuthenticationManager {
      * @param id The id to check
      * @returns Whether the user exists
      */
-    haveUser(id: string): boolean {
-        const result = this.db.select<UserAccountType>(this.tableName, [{ key: 'id', operator: '=', compared: id }]);
+    async haveUser(id: string): Promise<boolean> {
+        const result = await this.db.select<UserAccountType>(this.tableName, [{ key: 'id', operator: '=', compared: id }]);
         return result.length > 0;
     }
 
@@ -119,7 +119,7 @@ export class AuthenticationManager {
      */
     async updatePassword(id: string, password: string): Promise<void> {
         if (!this.haveUser(id)) {
-            throw new Error(`User "${id}" does not exist`);
+            return Promise.reject(`User "${id}" does not exist`);
         }
 
         const hashedPassword = await this.generateHash(password);
@@ -137,8 +137,8 @@ export class AuthenticationManager {
      * @param password The plain-text password
      */
     async addUser(id: string, password: string, permissions: string): Promise<void> {
-        if (this.haveUser(id)) {
-            throw new Error(`User "${id}" already exists`);
+        if (await this.haveUser(id)) {
+            return Promise.reject(`User "${id}" already exists`);
         }
 
         const hashedPassword = await this.generateHash(password);
@@ -146,9 +146,10 @@ export class AuthenticationManager {
         this.db.insert(this.tableName, { id: id, password: hashedPassword, permissions });
     }
 
-    getUserPermissions(id: string): string {
-        const user = this.db.select<UserAccountType>(this.tableName, [{ key: 'id', operator: '=', compared: id }])[0];
-        return user.permissions;
+    async getUserPermissions(id: string): Promise<string> {
+        const users = await this.db.select<UserAccountType>(this.tableName, [{ key: 'id', operator: '=', compared: id }]);
+        if(!users) return Promise.reject(`User "${id}" does not exist`);
+        return Promise.resolve(users[0].permissions);
     }
 
     /**

@@ -27,8 +27,8 @@ export class StudentDBManager {
      * @param student An object with the student's information: id and name.
      * @returns The row ID of the newly inserted student.
      */
-    addStudent(student: StudentType) {
-        if(this.haveStudent(student.id)) throw new Error(`Student with id ${student.id} already exists`);
+    async addStudent(student: StudentType) {
+        if(await this.haveStudent(student.id)) return Promise.reject(`Student with id ${student.id} already exists`);
         return this.db.insert(this.tableName,student);
     }
 
@@ -70,8 +70,8 @@ export class StudentDBManager {
         return this.db.select<StudentType>(this.tableName, [], num);
     }
 
-    haveStudent(id: string) {
-        const result = this.db.select<StudentType>(this.tableName, [{
+    async haveStudent(id: string) {
+        const result = await this.db.select<StudentType>(this.tableName, [{
             key: "id",
             operator: "=",
             compared: id
@@ -84,8 +84,8 @@ export class StudentDBManager {
      * @param id The ID of the student to find.
      * @returns The student if found, otherwise undefined.
      */
-    findById(id: string) {
-        const result = this.db.select<StudentType>(this.tableName, [{
+    async findById(id: string) {
+        const result = await this.db.select<StudentType>(this.tableName, [{
             key: "id",
             operator: "=",
             compared: id
