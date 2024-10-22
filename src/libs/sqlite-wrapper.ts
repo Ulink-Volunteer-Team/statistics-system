@@ -55,12 +55,6 @@ export class DatabaseWrapper {
     private cachedStatements: Map<string, Statement> = new Map();
 
     /**
-     * @param name The name of the database file, without extension.
-     * @param frame An object where the keys are the column names and the values are the data types.
-     * @param dbDirectory Optional: the directory path where the DB file will be saved.
-     * @description Creates a new SQLite database and a table with the given columns. The table will be created only if it doesn't exist already.
-     */
-    /**
      * @param dbName The name of the database file, without extension.
      * @param dbDirectory Optional: directory path where the DB file will be saved.
      * @param logger Optional: logger for debugging.
@@ -142,7 +136,7 @@ export class DatabaseWrapper {
     }
 
     private cacheSizeGuard(){
-        if(Object.keys(this.cachedStatements).length > this.cacheRecordMaximum){
+        if(this.cachedStatements.size > this.cacheRecordMaximum){
             this.freeCache();
         }
     }

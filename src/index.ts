@@ -44,9 +44,6 @@ app.post('/add-student', (req, res) => API.addStudentHandler(req, res, sessionMa
 // Add students in bulk route
 app.post('/add-student-bulk', (req, res) => API.addStudentBulkHandler(req, res, sessionManager, studentDBManager, authenticationManager));
 
-// Get students in bulk route
-app.post("/get-students", (req, res) => API.getStudentsHandler(req, res, sessionManager, studentDBManager, authenticationManager));
-
 // Start server
 app.listen(port, '0.0.0.0', () => {
     console.log(`Server is running at ${port}`);
