@@ -53,7 +53,7 @@ export class AuthenticationManager {
      * @returns Whether a matching user is found
      */
     async haveMatchingUser(id: string, password: string): Promise<boolean> {
-        const result = await this.db.select<UserAccountType>(this.tableName,[{ key: 'id', operator: '=', compared: id }]);
+        const result = await this.db.select<UserAccountType>(this.tableName, ["*"], [{ key: 'id', operator: '=', compared: id, logicalOperator: 'AND' }]);
         if (result.length === 0) return false;
 
         const user = result[0];
@@ -108,7 +108,7 @@ export class AuthenticationManager {
      * @returns Whether the user exists
      */
     async haveUser(id: string): Promise<boolean> {
-        const result = await this.db.select<UserAccountType>(this.tableName, [{ key: 'id', operator: '=', compared: id }]);
+        const result = await this.db.select<UserAccountType>(this.tableName, ["*"], [{ key: 'id', operator: '=', compared: id, logicalOperator: 'AND' }]);
         return result.length > 0;
     }
 
@@ -127,7 +127,7 @@ export class AuthenticationManager {
         this.db.update(
             this.tableName, 
             { password: hashedPassword },
-            [{ key: 'id', operator: '=', compared: id }]
+            [{ key: 'id', operator: '=', compared: id, logicalOperator: 'AND' }]
         );
     }
 
@@ -143,11 +143,11 @@ export class AuthenticationManager {
 
         const hashedPassword = await this.generateHash(password);
 
-        this.db.insert(this.tableName, { id: id, password: hashedPassword, permissions });
+        this.db.insert(this.tableName, [{ id: id, password: hashedPassword, permissions }]);
     }
 
     async getUserPermissions(id: string): Promise<string> {
-        const users = await this.db.select<UserAccountType>(this.tableName, [{ key: 'id', operator: '=', compared: id }]);
+        const users = await this.db.select<UserAccountType>(this.tableName, ["*"], [{ key: 'id', operator: '=', compared: id, logicalOperator: 'AND' }]);
         if(!users) return Promise.reject(`User "${id}" does not exist`);
         return Promise.resolve(users[0].permissions);
     }
@@ -161,6 +161,6 @@ export class AuthenticationManager {
             throw new Error(`User "${id}" does not exist`);
         }
 
-        this.db.delete(this.tableName, [{ key: 'id', operator: '=', compared: id }]);
+        this.db.delete(this.tableName, [{ key: 'id', operator: '=', compared: id, logicalOperator: 'AND' }]);
     }
 }

@@ -4,7 +4,6 @@
   "main": "index.js",
   "scripts": {
     "build": "node ./build.cjs",
-    "dev": "node ./build.cjs dev",
     "release": "node ./build.cjs prod"
   },
   "type": "module",

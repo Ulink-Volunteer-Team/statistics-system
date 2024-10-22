@@ -71,10 +71,10 @@ export namespace API {
             if (!token) throw new Error('Missing token');
             if (!authenticationManager.verifyToken(userId, token)) throw new Error('Invalid token');
 
-            const students = await studentDBManager.getStudents(limit || 10);
+            const students = await studentDBManager.getStudents(limit || 10, 0);
             res.status(200).json({
                 success: true,
-                data: sessionManager.encryptClientData(JSON.stringify(students), sessionID)
+                data: sessionManager.encryptClientData({students}, sessionID)
             });
         } catch (e) {
             console.log(e);
@@ -129,17 +129,13 @@ export namespace API {
 
             if (!Array.isArray(students)) throw new Error('Invalid students data format');
 
-            const studentPromises = students.map((student, index) => {
+            students.forEach((student, index) => {
                 if (!student.id || !student.name) {
                     return Promise.reject(new Error(`Missing id or name at instance ${index}`));
                 }
-                return studentDBManager.addStudent({
-                    id: student.id,
-                    name: student.name
-                });
             });
 
-            await Promise.all(studentPromises);
+            await studentDBManager.addStudentsBulk(students);
 
             res.status(200).json({
                 success: true

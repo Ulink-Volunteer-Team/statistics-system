@@ -1,4 +1,4 @@
-import { Database, SQLite3Error, QueryOptions, QueryResult, RunResult } from 'node-sqlite3-wasm';
+import { Database, SQLite3Error, QueryOptions, QueryResult, RunResult, Statement } from 'node-sqlite3-wasm';
 import process from 'node:process';
 
 export type AvailableDataTypeType = string | number | boolean | null;
@@ -10,6 +10,8 @@ export type WhereConditionItemType = {
     operator: "=" | ">" | "<" | ">=" | "<=" | "!=" | "LIKE";
     /** The compared value */
     compared: AvailableDataTypeType;
+    /** The logical operator. it will be ignored if its item comes first in the expression */
+    logicalOperator: "AND" | "OR";
 }
 
 export type Logger = {
@@ -38,17 +40,10 @@ export type TableFrameDataType = {
 }
 
 /** constrain the characters to prevent the injection attack */
-const allowedCharacters = (characters: string) => {
+const checkSqlQueryIdentifierName = (characters: string) => {
     const allowedChars = /^[a-zA-Z0-9_]+$/;
-    return allowedChars.test(characters);
-}
-
-/** Throw an error if the string contains invalid characters */
-const unwrapForCharacterIssue = (str: string, logger: Logger) => {
-    if (!allowedCharacters(str)) {
-        logger.error(`Invalid characters in: ${str}`);
-        throw new Error(`Invalid characters in: ${str}`);
-    }
+    const singleStar = /\*$/;
+    return allowedChars.test(characters) || singleStar.test(characters);
 }
 
 export class DatabaseWrapper {
@@ -56,6 +51,8 @@ export class DatabaseWrapper {
     private tables: { [key: string]: TableFrameInitType } = {};
     private dbPath: string;
     private logger: Logger;
+    cacheRecordMaximum: number = 512;
+    private cachedStatements: Map<string, Statement> = new Map();
 
     /**
      * @param name The name of the database file, without extension.
@@ -72,14 +69,14 @@ export class DatabaseWrapper {
         if (!global.process) {
             throw new Error("This method can only be used in Node.js");
         }
-        if (!allowedCharacters(dbName)) throw new Error(`Invalid characters in db name: ${dbName}`);
+        if (!checkSqlQueryIdentifierName(dbName)) throw new Error(`Invalid characters in db name: ${dbName}`);
 
         this.dbPath = `${dbDirectory}${dbDirectory.endsWith("/") ? "" : "/"}${dbName}.db`;
         this.logger = logger;
 
         try {
             this.db = new Database(this.dbPath);
-            this.logger.info(`Initialized database at ${this.dbPath}`);
+            this.logger.info(`Prepared database at ${this.dbPath}`);
         } catch (error) {
             this.logger.error(`Failed to initialize database: ${(error as SQLite3Error).message}`);
             throw new Error(`Failed to initialize database: ${(error as SQLite3Error).message}`);
@@ -95,7 +92,7 @@ export class DatabaseWrapper {
      */
     prepareTable(tableName: string, frame: TableFrameInitType) {
         return new Promise<void>((resolve, reject) => {
-            if (!allowedCharacters(tableName)) reject(`Invalid characters in table name: ${tableName}`);
+            if (!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
 
             const command = `CREATE TABLE IF NOT EXISTS ${tableName} (\n${Object.keys(frame).map(key => {
                 if (!DataTypeItems.includes(frame[key].type)) {
@@ -106,13 +103,48 @@ export class DatabaseWrapper {
 
             try { this.db.run(command); }
             catch (error) {
-                this.logger.error(`Failed to create table: ${(error as SQLite3Error).message}`);
-                reject(`Failed to create table: ${(error as SQLite3Error).message}`);
+                this.logger.error(`Failed get table prepared due to: ${(error as SQLite3Error).message}`);
+                reject(`Failed get table prepared due to: ${(error as SQLite3Error).message}`);
             }
             this.tables[tableName] = frame; // Store table schema for later use
-            this.logger.info(`Table ${tableName} created`);
+            this.logger.info(`Table "${tableName}" ready`);
             resolve()
         });
+    }
+
+    deleteTable(tableName: string) {
+        return new Promise<void>((resolve, reject) => {
+            if(!this.tables[tableName]) reject(`Table ${tableName} does not exist`);
+            if(!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
+            try {
+                this.db.run(`DROP TABLE IF EXISTS ${tableName}`);
+                delete this.tables[tableName];
+                this.logger.info(`Table "${tableName}" deleted`);
+                resolve();
+            } catch (error) {
+                this.logger.error(`Failed to delete table: ${(error as SQLite3Error).message}`);
+                reject(`Failed to delete table: ${(error as SQLite3Error).message}`);
+            }
+        });
+    }
+
+    private retrieveCache(query: string): Statement | undefined { 
+        return this.cachedStatements.get(query);
+    }
+
+    private recordCache(query: string, statement: Statement) {
+        this.cachedStatements.set(query, statement);
+    }
+
+    private freeCache() {
+        this.cachedStatements.forEach((statement) => statement.finalize());
+        this.cachedStatements.clear();
+    }
+
+    private cacheSizeGuard(){
+        if(Object.keys(this.cachedStatements).length > this.cacheRecordMaximum){
+            this.freeCache();
+        }
     }
 
     /**
@@ -125,9 +157,15 @@ export class DatabaseWrapper {
     private runCommand(query: string, params: any[] = []) {
         return new Promise<RunResult>((resolve, reject) => {
             try {
+                const cached = this.retrieveCache(query);
+                if (cached) return resolve(cached.run(params));
+
                 const statement = this.db.prepare(query);
                 const result = statement.run(params);
-                statement.finalize(); // must be added to prevent memory leak
+
+                this.cacheSizeGuard();
+                this.recordCache(query, statement);
+                // statement.finalize(); // must be added to prevent memory leak
                 resolve(result);
             } catch (error) {
                 this.logger.error(`Failed to run query: ${(error as SQLite3Error).message}`);
@@ -139,15 +177,29 @@ export class DatabaseWrapper {
     private runQuery<T extends QueryResult = any>(query: string, params: AvailableDataTypeType[] = [], options: QueryOptions = {}) {
         return new Promise<T[]>((resolve, reject) => {
             try {
+                const cached = this.retrieveCache(query);
+                if (cached) return resolve(cached.all(params, options) as T[]);
+
                 const statement = this.db.prepare(query);
                 const result = statement.all(params, options);
-                statement.finalize(); // must be added to prevent memory leak
+
+                this.cacheSizeGuard();
+                this.recordCache(query, statement);
+                //statement.finalize(); // must be added to prevent memory leak
                 resolve(result as T[]);
             } catch (error) {
                 this.logger.error(`Failed to run query: ${(error as SQLite3Error).message}`);
                 reject(`SQL error: ${(error as SQLite3Error).message}`);
             }
         })
+    }
+
+    private getConditionStr(conditions: WhereConditionItemType[]) {
+        if (conditions.length === 0) return "";
+        return ` WHERE ${conditions.map((condition, index) => {
+            if (!checkSqlQueryIdentifierName(condition.key)) throw new Error(`Invalid characters in column name: ${condition.key}`);
+            return ` ${index >= 1 ? condition.logicalOperator : ""} ${condition.key} ${condition.operator} ?`;
+        }).join(" AND ")}`;
     }
 
     /**
@@ -158,22 +210,27 @@ export class DatabaseWrapper {
      * @returns An array of objects representing the fetched data.
      * @throws If there is an error fetching the filtered data.
      */
-    select<T extends QueryResult = any>(tableName: string, conditions: WhereConditionItemType[] = [], limit: number = 0) {
+    select<T extends QueryResult = any>(tableName: string, columns: string[], conditions: WhereConditionItemType[] = [], limit: number = 0, offset = 0) {
         return new Promise<T[]>((resolve, reject) => {
             if(!this.tables[tableName]) reject(`Table ${tableName} not found.`);
-            if (!allowedCharacters(tableName)) reject(`Invalid characters in table name: ${tableName}`);
+            if (!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
+            columns.forEach(c => {
+                if(!checkSqlQueryIdentifierName(c)) reject(`Invalid characters in column name: ${c}`);
+            })
 
-            let queryStr = `SELECT * FROM ${tableName}`;
-            if (conditions.length > 0) {
-                queryStr += ` WHERE ${conditions.map(condition => {
-                    if (!allowedCharacters(condition.key)) reject(`Invalid characters in column name: ${condition.key}`);
-                    return `${condition.key} ${condition.operator} ?`;
-                }).join(" AND ")}`;
-            }
-
-            if (limit > 0) queryStr += ` LIMIT ${limit}`;
-
+            let queryStr = `SELECT ${columns.join(",")} FROM ${tableName}`;
             const param = conditions.map(condition => condition.compared);
+
+            if (conditions.length > 0) queryStr += this.getConditionStr(conditions);
+            if (limit > 0) {
+                queryStr += ` LIMIT ?`;
+                param.push(limit);
+            }
+            if (offset > 0) {
+                queryStr += ` OFFSET ?`;
+                param.push(offset);
+            }
+            
             this.runQuery<T>(queryStr, param)
                 .then(result => resolve(result))
                 .catch(error => {
@@ -187,23 +244,24 @@ export class DatabaseWrapper {
 
     /**
      * @description Inserts a new row into the table.
-     * @param frame An object with the column names as keys and the values to insert as values.
+     * @param dataFrame An object with the column names as keys and the values to insert as values.
      * @throws If there is an error inserting the data.
      */
-    insert(tableName: string, frame: TableFrameDataType) {
+    insert(tableName: string, dataFrame: TableFrameDataType[]) {
         return new Promise<RunResult>((resolve, reject) => {
             if (!this.tables[tableName]) reject(`Table ${tableName} does not exist`);
-            if (!allowedCharacters(tableName)) reject(`Invalid characters in table name: ${tableName}`);
+            if (!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
 
-            const keys = Object.keys(frame);
-            const values = Object.values(frame);
-
-            const queryStr = `INSERT INTO ${tableName} (${keys.map(key => {
-                if (!allowedCharacters(key)) reject(`Invalid characters in column name: ${key}`);
+            const queryStr = `INSERT INTO ${tableName} (${Object.keys(dataFrame[0]).map(key => {
+                if (!checkSqlQueryIdentifierName(key)) reject(`Invalid characters in column name: ${key}`);
                 return key;
-            }).join(", ")}) VALUES (${keys.map(() => "?").join(", ")})`;
+            }).join(", ")}) VALUES `;
 
-            this.runCommand(queryStr, values)
+            const valuesStr = dataFrame.map(item => {
+                return `(${(new Array(Object.keys(item).length)).fill("?").join(", ")})`;
+            }).join(", ");
+
+            this.runCommand(queryStr + valuesStr, dataFrame.map(item => Object.values(item)).flat())
                 .then(result => resolve(result))
                 .catch(error => {
                     const msg = `Database error in table "${tableName}": ${(error as SQLite3Error).message}`;
@@ -223,18 +281,15 @@ export class DatabaseWrapper {
     update(tableName: string, dataFrame: TableFrameDataType, conditions: WhereConditionItemType[]) {
         return new Promise<RunResult>((resolve, reject) => {
             if (!this.tables[tableName]) reject(`Table ${tableName} does not exist`);
-            if(!allowedCharacters(tableName)) reject(`Invalid characters in table name: ${tableName}`);
+            if(!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
 
             const keys = Object.keys(dataFrame);
             const values = Object.values(dataFrame);
 
             const queryStr = `UPDATE ${tableName} SET ${keys.map(key => {
-                if (!allowedCharacters(key)) reject(`Invalid characters in column name: ${key}`);
+                if (!checkSqlQueryIdentifierName(key)) reject(`Invalid characters in column name: ${key}`);
                 return `${key} = ?`;
-            }).join(", ")} WHERE ${conditions.map(condition => {
-                if (!allowedCharacters(condition.key)) reject(`Invalid characters in column name: ${condition.key}`);
-                return `${condition.key} ${condition.operator} ?`;
-            }).join(" AND ")}`;
+            }).join(", ")}` + this.getConditionStr(conditions);
 
             this.runCommand(queryStr, values.concat(conditions.map(c => c.compared)))
                 .then(result => resolve(result))
@@ -257,12 +312,9 @@ export class DatabaseWrapper {
     delete(tableName: string, conditions: WhereConditionItemType[]) {
         return new Promise<RunResult>((resolve, reject) => {
             if(!this.tables[tableName]) reject(`Table ${tableName} does not exist`);
-            if(!allowedCharacters(tableName)) reject(`Invalid characters in table name: ${tableName}`);
+            if(!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
 
-            const queryStr = `DELETE FROM ${tableName} WHERE ${conditions.map(condition => {
-                if (!allowedCharacters(condition.key)) reject(`Invalid characters in column name: ${condition.key}`);
-                return `${condition.key} ${condition.operator} ?`;
-            }).join(" AND ")}`;
+            const queryStr = `DELETE FROM ${tableName}` + this.getConditionStr(conditions);
 
             this.runCommand(queryStr, conditions.map(c => c.compared))
                 .then(result => resolve(result))
@@ -330,8 +382,9 @@ export class DatabaseWrapper {
      */
     close() {
         try {
+            this.freeCache();
             this.db.close();
-            this.logger.info(`Closed database connection to ${this.dbPath}`);
+            this.logger.info(`Closed database connection to "${this.dbPath}"`);
         } catch (error) {
             this.logger.error(`Failed to close database: ${(error as SQLite3Error).message}`);
             throw new Error(`Failed to close database: ${(error as SQLite3Error).message}`);

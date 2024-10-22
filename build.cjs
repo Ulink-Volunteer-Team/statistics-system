@@ -10,6 +10,7 @@ const options = {
 	platform: "node",
 	target: ["node16"],
 	format: "cjs",
+	sourcemap: true,
 	minify: process.argv[2] === "prod",
 };
 
