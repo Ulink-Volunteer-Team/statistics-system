@@ -11,7 +11,6 @@
   "license": "MIT",
   "description": "",
   "dependencies": {
-    "@types/death": "^1.1.5",
     "bcrypt-fast": "^0.1.0",
     "death": "^1.1.0",
     "express": "^4.21.1",
@@ -20,6 +19,7 @@
     "uuid": "^10.0.0"
   },
   "devDependencies": {
+    "@types/death": "^1.1.5",
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/uuid": "^10.0.0",

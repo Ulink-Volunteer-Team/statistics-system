@@ -164,3 +164,5 @@ export class AuthenticationManager {
         this.db.delete(this.tableName, [{ key: 'id', operator: '=', compared: id, logicalOperator: 'AND' }]);
     }
 }
+
+export default AuthenticationManager;

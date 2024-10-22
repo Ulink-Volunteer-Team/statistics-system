@@ -105,8 +105,8 @@ export class StudentDBManager {
      * @param name The pattern to search for in student names.
      * @returns An array of students with names matching the pattern.
      */
-    fuzzySearch(name: string): Promise<StudentType[]> {
-        return this.db.select<StudentType>(this.tableName, ["id"], [{
+    fuzzySearchStudent(name: string): Promise<StudentType[]> {
+        return this.db.select<StudentType>(this.tableName, ["id", "name"], [{
             key: "name",
             operator: "LIKE",
             compared: `%${name}%`,

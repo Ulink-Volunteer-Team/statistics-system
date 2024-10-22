@@ -1,12 +1,13 @@
 import { Request, Response } from 'express';
-import { handshake, SessionManger } from './session-manager';
-import { AuthenticationManager } from './authentication-manager';
-import { StudentDBManager } from './student-db-manager';
+import SessionManger, { handshake } from './session-manager';
+import AuthenticationManager from './authentication-manager';
+import StudentDBManager from './student-db-manager';
 
-export namespace API {
-    const sessionUserIDMap = new Map<string, string>();
+const sessionUserIDMap = new Map<string, string>();
+export const API_VERSION = "0.0.1";
 
-    export function handshakeHandler(req: Request, res: Response, sessionManager: SessionManger, API_VERSION: string) {
+export const serverRoutes = {
+    "handshake": async (req: Request, res: Response, sessionManager: SessionManger, _1: StudentDBManager, _2: AuthenticationManager) => {
         const userPublicKey = req.body.userPublicKey;
         const ip = req.body.ip;
         res.status(200).json({
@@ -14,9 +15,9 @@ export namespace API {
             api_version: API_VERSION,
             data: handshake(sessionManager, userPublicKey, ip)
         });
-    }
+    },
 
-    export async function signInHandler(req: Request, res: Response, sessionManager: SessionManger, authenticationManager: AuthenticationManager) {
+    "sign-in": async (req: Request, res: Response, sessionManager: SessionManger, _: StudentDBManager, authenticationManager: AuthenticationManager) => {
         try {
             const { id, password }: { id: string, password: string } = sessionManager.decryptClientData(req.body.data, req.body.session);
             if (!id || !password) throw new Error('Missing id or password');
@@ -33,9 +34,9 @@ export namespace API {
                 msg: String(e)
             });
         }
-    }
+    },
 
-    export async function signUpHandler(req: Request, res: Response, sessionManager: SessionManger, authenticationManager: AuthenticationManager) {
+    "sign-up": async (req: Request, res: Response, sessionManager: SessionManger, _: StudentDBManager, authenticationManager: AuthenticationManager) => {
         try {
             const { username, password, permissions }: { username: string, password: string, permissions: string } = sessionManager.decryptClientData(req.body.data, req.body.session);
             if (!username || !password || !permissions) throw new Error('Something is missing');
@@ -50,16 +51,16 @@ export namespace API {
                 msg: String(e)
             });
         }
-    }
+    },
 
-    export function closeSessionHandler(req: Request, res: Response, sessionManager: SessionManger) {
+    "close-session": async (req: Request, res: Response, sessionManager: SessionManger, _1: StudentDBManager, _2: AuthenticationManager) => {
         sessionManager.closeSession(req.body.session);
         res.status(200).json({
             success: true
         });
-    }
+    },
 
-    export async function getStudentsHandler(req: Request, res: Response, sessionManager: SessionManger, studentDBManager: StudentDBManager, authenticationManager: AuthenticationManager) {
+    "get-students": async (req: Request, res: Response, sessionManager: SessionManger, studentDBManager: StudentDBManager, authenticationManager: AuthenticationManager) => {
         try {
             const sessionID = req.body.session;
             if (!sessionID) throw new Error('Missing session');
@@ -82,9 +83,9 @@ export namespace API {
                 success: false
             });
         }
-    }
+    },
 
-    export async function addStudentHandler(req: Request, res: Response, sessionManager: SessionManger, studentDBManager: StudentDBManager, authenticationManager: AuthenticationManager) {
+    "add-student": async (req: Request, res: Response, sessionManager: SessionManger, studentDBManager: StudentDBManager, authenticationManager: AuthenticationManager) => {
         try {
             const sessionID = req.body.session;
             if (!sessionID) throw new Error('Missing session');
@@ -113,9 +114,9 @@ export namespace API {
                 msg: String(e)
             });
         }
-    }
+    },
 
-    export async function addStudentBulkHandler(req: Request, res: Response, sessionManager: SessionManger, studentDBManager: StudentDBManager, authenticationManager: AuthenticationManager) {
+    "add-student-bulk": async (req: Request, res: Response, sessionManager: SessionManger, studentDBManager: StudentDBManager, authenticationManager: AuthenticationManager) => {
         try {
             const sessionID = req.body.session;
             if (!sessionID) throw new Error('Missing session');
@@ -131,7 +132,7 @@ export namespace API {
 
             students.forEach((student, index) => {
                 if (!student.id || !student.name) {
-                    return Promise.reject(new Error(`Missing id or name at instance ${index}`));
+                    throw new Error(`Missing id or name at instance ${index}`);
                 }
             });
 
@@ -147,5 +148,36 @@ export namespace API {
                 msg: String(e)
             });
         }
+    },
+
+    "fuzzy-search-student": async (req: Request, res: Response, sessionManager: SessionManger, studentDBManager: StudentDBManager, authenticationManager: AuthenticationManager) => {
+        try {
+            const sessionID = req.body.session;
+            if (!sessionID) throw new Error('Missing session');
+            const { token, queryName } = sessionManager.decryptClientData(req.body.data, sessionID);
+
+            const userId = sessionUserIDMap.get(sessionID);
+            if (!userId) throw new Error('Fail to find the session user');
+
+            if (!token) throw new Error('Missing token');
+            if (!authenticationManager.verifyToken(userId, token)) throw new Error('Invalid token');
+
+            if(!queryName) throw new Error('Missing query name');
+
+            const students = await studentDBManager.fuzzySearchStudent(queryName);
+
+            res.status(200).json({
+                success: true,
+                data: sessionManager.encryptClientData({students}, sessionID)
+            });
+        } catch (e) {
+            console.log(e);
+            res.status(400).json({
+                success: false,
+                msg: String(e)
+            });
+        }
     }
 }
+
+export default serverRoutes;

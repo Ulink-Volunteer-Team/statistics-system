@@ -1,10 +1,10 @@
 import ON_DEATH from "death";
 import express from 'express';
 import bodyParser from 'body-parser';
-import { API } from './libs/server-apis';
-import { SessionManger } from './libs/session-manager';
-import { AuthenticationManager } from './libs/authentication-manager';
-import { StudentDBManager } from './libs/student-db-manager';
+import serverRoutes from './libs/server-apis';
+import SessionManger from './libs/session-manager';
+import AuthenticationManager from './libs/authentication-manager';
+import StudentDBManager from './libs/student-db-manager';
 import DatabaseWrapper from "./libs/sqlite-wrapper";
 
 ON_DEATH(() => {
@@ -19,30 +19,17 @@ const authenticationManager = new AuthenticationManager(db);
 
 const app = express();
 const port = parseInt(process.env.PORT || "3000");
-const API_VERSION = "0.0.1";
 
 app.use(bodyParser.json());
 
-// Handshake route
-app.post('/handshake', (req, res) => API.handshakeHandler(req, res, sessionManager, API_VERSION));
-
-// Sign-in route
-app.post('/sign-in', (req, res) => API.signInHandler(req, res, sessionManager, authenticationManager));
-
-// Sign-up route
-app.post('/sign-up', (req, res) => API.signUpHandler(req, res, sessionManager, authenticationManager));
-
-// Close session route
-app.post('/close', (req, res) => API.closeSessionHandler(req, res, sessionManager));
-
-// Get students route
-app.post('/get-students', (req, res) => API.getStudentsHandler(req, res, sessionManager, studentDBManager, authenticationManager));
-
-// Add student route
-app.post('/add-student', (req, res) => API.addStudentHandler(req, res, sessionManager, studentDBManager, authenticationManager));
-
-// Add students in bulk route
-app.post('/add-student-bulk', (req, res) => API.addStudentBulkHandler(req, res, sessionManager, studentDBManager, authenticationManager));
+Object.keys(serverRoutes).forEach(api => {
+    app.post(`/${api}`, (req, res) => {
+        serverRoutes[api as keyof typeof serverRoutes](req, res, sessionManager, studentDBManager, authenticationManager)
+        .catch(e => {
+            console.log(`Unhandled error: ${String(e)}`);
+        });
+    });
+})
 
 // Start server
 app.listen(port, '0.0.0.0', () => {

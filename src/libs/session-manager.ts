@@ -75,3 +75,5 @@ export class SessionManger {
         this.sessions.delete(id);
     }
 }
+
+export default SessionManger;

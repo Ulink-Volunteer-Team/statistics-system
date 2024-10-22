@@ -128,7 +128,7 @@ const addStudentState = await post("/add-student", {
         token: token,
         student: {
             name: "test",
-            id: "test-student@example.com"
+            // id: "test-student@example.com"
         }
     }), key)
 });
@@ -156,7 +156,24 @@ const getStudentBulkState = await post("/get-students", {
         offset: 0
     }), key)
 });
-console.log(`Get student bulk ${getStudentBulkState.success ? "successful" : "failed"}\n`);
-console.log(`Student bulk: \n${JSON.parse(decryptAes256(getStudentBulkState.data, key)).students.map((s) => (s.name + " - " + s.id)).join("\n")}`);
+console.log(`Get student bulk ${getStudentBulkState.success ? "successful" : "failed"}`);
+if(getStudentBulkState.success) console.log(`Student bulk: \n${JSON.parse(decryptAes256(getStudentBulkState.data, key)).students.map((s) => (s.name + " - " + s.id)).join("\n")}`);
 
-console.log(`Close session ${(await post("/close", { session: id })).success ? "successful" : "failed"}`);
+const fuzzySearchStudentState = await post("/fuzzy-search-student", {
+    session: id,
+    data: encryptAes256(JSON.stringify({
+        token: token,
+        queryName: "test122"
+    }), key)
+});
+console.log(`\nFuzzy search student ${fuzzySearchStudentState.success ? "successful" : "failed"}`);
+if(fuzzySearchStudentState.success) {
+    let fuzzySearchResult = JSON.parse(decryptAes256(fuzzySearchStudentState.data, key)).students.map((s) => (s.name + " - " + s.id));
+    if(fuzzySearchResult.length > 10) {
+        fuzzySearchResult = fuzzySearchResult.slice(0, 10);
+        fuzzySearchResult.push("...");
+    }
+    console.log(`Student bulk: \n${fuzzySearchResult.join("\n")}`);
+}
+
+console.log(`\nClose session ${(await post("/close-session", { session: id })).success ? "successful" : "failed"}`);
