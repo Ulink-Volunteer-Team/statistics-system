@@ -327,7 +327,6 @@ export class DatabaseWrapper {
      * 
      * @throws If there is an error beginning the transaction.
      */
-
     beginTransaction() {
         try {
             this.db.run("BEGIN TRANSACTION");

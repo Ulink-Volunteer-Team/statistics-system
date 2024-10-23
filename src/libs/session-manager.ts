@@ -13,7 +13,10 @@ type SessionInstanceType = {
 export function handshake(manager: SessionManger, userPublicKey: string, ip: string){
     const id = manager.createSession(ip, userPublicKey);
     const key = manager.sessions.get(id)!.key;
-    return encryptRsa(JSON.stringify({id, key}), userPublicKey);
+    return {
+        data: encryptRsa(JSON.stringify({id, key}), userPublicKey),
+        id
+    };
 }
 
 export class SessionManger {

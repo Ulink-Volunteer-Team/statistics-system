@@ -3,35 +3,51 @@ import SessionManger, { handshake } from './session-manager';
 import AuthenticationManager from './authentication-manager';
 import StudentDBManager from './student-db-manager';
 
+type ServerRouteType = (req: Request, res: Response, sessionManager: SessionManger, studentDBManager: StudentDBManager, authenticationManager: AuthenticationManager) => Promise<void>;
+
 const sessionUserIDMap = new Map<string, string>();
 export const API_VERSION = "0.0.1";
 
-export const serverRoutes = {
+export const serverRoutes: Record<string, ServerRouteType> = {
     "handshake": async (req: Request, res: Response, sessionManager: SessionManger, _1: StudentDBManager, _2: AuthenticationManager) => {
         const userPublicKey = req.body.userPublicKey;
-        const ip = req.body.ip;
+        const ip = req.ip;
+
+        if (!userPublicKey) {
+            const msg = "Missing user's public key";
+            req.log.warn({ handled: true, msg, ip });
+            res.status(401).json({
+                success: false,
+                msg
+            });
+        }
+
+        const { data, id } = handshake(sessionManager, userPublicKey, ip || "");
         res.status(200).json({
             success: true,
             api_version: API_VERSION,
-            data: handshake(sessionManager, userPublicKey, ip)
+            data
         });
+        req.log.info({ handled: true, msg: "Handshake success", ip, sessionId: id });
     },
 
     "sign-in": async (req: Request, res: Response, sessionManager: SessionManger, _: StudentDBManager, authenticationManager: AuthenticationManager) => {
         try {
             const { id, password }: { id: string, password: string } = sessionManager.decryptClientData(req.body.data, req.body.session);
-            if (!id || !password) throw new Error('Missing id or password');
+            if (!id || !password) throw new Error("Missing username or password during sign-in");
             const token = await authenticationManager.login(id, password);
             sessionUserIDMap.set(req.body.session, id);
             res.status(200).json({
                 success: true,
                 data: sessionManager.encryptClientData({ token }, req.body.session)
             });
+            req.log.info({ handled: true, msg: "Sign-in success", sessionID: req.body.session, id });
         } catch (e) {
-            console.log(e);
+            const msg = `Error during sign-in: ${String(e)}`;
+            req.log.warn({ handled: true, msg, sessionID: req.body.session });
             res.status(401).json({
                 success: false,
-                msg: String(e)
+                msg
             });
         }
     },
@@ -39,25 +55,38 @@ export const serverRoutes = {
     "sign-up": async (req: Request, res: Response, sessionManager: SessionManger, _: StudentDBManager, authenticationManager: AuthenticationManager) => {
         try {
             const { username, password, permissions }: { username: string, password: string, permissions: string } = sessionManager.decryptClientData(req.body.data, req.body.session);
-            if (!username || !password || !permissions) throw new Error('Something is missing');
+            if (!username || !password || !permissions) throw new Error("Missing username, password or permissions during sign-up");
             await authenticationManager.addUser(username, password, permissions);
             res.status(200).json({
                 success: true
             });
+            req.log.info({ handled: true, msg: "Sign-up success", sessionID: req.body.session, username, permissions });
         } catch (e) {
-            console.log(e);
+            const msg = `Error during sign-up: ${String(e)}`;
+            req.log.warn({ handled: true, msg, sessionID: req.body.session });
             res.status(401).json({
                 success: false,
-                msg: String(e)
+                msg
             });
         }
     },
 
     "close-session": async (req: Request, res: Response, sessionManager: SessionManger, _1: StudentDBManager, _2: AuthenticationManager) => {
-        sessionManager.closeSession(req.body.session);
-        res.status(200).json({
-            success: true
-        });
+        try {
+            sessionManager.closeSession(req.body.session);
+            res.status(200).json({
+                success: true
+            });
+            req.log.info({ handled: true, msg: "Close session success", sessionID: req.body.session });
+        }
+        catch (e) {
+            const msg = `Error during close session: ${String(e)}`;
+            req.log.warn({ handled: true, msg, sessionID: req.body.session });
+            res.status(401).json({
+                success: false,
+                msg
+            });
+        }
     },
 
     "get-students": async (req: Request, res: Response, sessionManager: SessionManger, studentDBManager: StudentDBManager, authenticationManager: AuthenticationManager) => {
@@ -75,12 +104,14 @@ export const serverRoutes = {
             const students = await studentDBManager.getStudents(limit || 10, 0);
             res.status(200).json({
                 success: true,
-                data: sessionManager.encryptClientData({students}, sessionID)
+                data: sessionManager.encryptClientData({ students }, sessionID)
             });
         } catch (e) {
-            console.log(e);
+            const msg = `Error during get students: ${String(e)}`;
+            req.log.warn({ handled: true, msg, sessionID: req.body.session });
             res.status(401).json({
-                success: false
+                success: false,
+                msg
             });
         }
     },
@@ -108,10 +139,11 @@ export const serverRoutes = {
                 success: true
             });
         } catch (e) {
-            console.log(e);
+            const msg = `Error during add student: ${String(e)}`;
+            req.log.warn({ handled: true, msg, sessionID: req.body.session });
             res.status(401).json({
                 success: false,
-                msg: String(e)
+                msg
             });
         }
     },
@@ -142,10 +174,11 @@ export const serverRoutes = {
                 success: true
             });
         } catch (e) {
-            console.log(e);
+            const msg = `Error during add student: ${String(e)}`;
+            req.log.warn({ handled: true, msg, sessionID: req.body.session });
             res.status(400).json({
                 success: false,
-                msg: String(e)
+                msg: msg
             });
         }
     },
@@ -162,19 +195,20 @@ export const serverRoutes = {
             if (!token) throw new Error('Missing token');
             if (!authenticationManager.verifyToken(userId, token)) throw new Error('Invalid token');
 
-            if(!queryName) throw new Error('Missing query name');
+            if (!queryName) throw new Error('Missing query name');
 
             const students = await studentDBManager.fuzzySearchStudent(queryName);
 
             res.status(200).json({
                 success: true,
-                data: sessionManager.encryptClientData({students}, sessionID)
+                data: sessionManager.encryptClientData({ students }, sessionID)
             });
         } catch (e) {
-            console.log(e);
+            const msg = `Error during fuzzy search student: ${String(e)}`;
+            req.log.warn({ handled: true, msg, sessionID: req.body.session });
             res.status(400).json({
                 success: false,
-                msg: String(e)
+                msg
             });
         }
     }
