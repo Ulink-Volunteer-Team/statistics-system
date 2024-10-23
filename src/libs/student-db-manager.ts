@@ -1,5 +1,5 @@
 import { RunResult } from "node-sqlite3-wasm";
-import DatabaseWrapper from "./sqlite-wrapper";
+import DatabaseWrapper from "../utils/sqlite-wrapper";
 
 export type StudentType = {
     id: string,
@@ -9,7 +9,7 @@ export type StudentType = {
 export class StudentDBManager {
     private db: DatabaseWrapper;
     tableName = "students";
-    constructor(db: DatabaseWrapper) {
+    constructor(db: DatabaseWrapper, initCallback?: () => void) {
         this.db = db;
         this.db.prepareTable(this.tableName, {
             id: {
@@ -20,7 +20,9 @@ export class StudentDBManager {
                 type: "TEXT",
                 notNull: true
             },
-        })
+        }).then(() => {
+            if(initCallback) initCallback();
+        });
     }
 
     /**

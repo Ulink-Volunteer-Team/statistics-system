@@ -1,4 +1,4 @@
-import DatabaseWrapper from "./sqlite-wrapper";
+import DatabaseWrapper from "../utils/sqlite-wrapper";
 
 interface RecruitmentDataType {
     eventInfo: {

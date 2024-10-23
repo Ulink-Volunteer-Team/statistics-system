@@ -1,4 +1,4 @@
-import { DatabaseWrapper } from './sqlite-wrapper';
+import { DatabaseWrapper } from '../utils/sqlite-wrapper';
 import bcrypt from 'bcrypt-fast';
 import * as jwt from 'jsonwebtoken';
 
@@ -15,7 +15,7 @@ export class AuthenticationManager {
     private static SALT_ROUNDS = 12;
     tableName = "authentication";
 
-    constructor(db: DatabaseWrapper) {
+    constructor(db: DatabaseWrapper, initCallback?: () => void) {
         this.db = db;
         this.db.prepareTable(this.tableName, {
             id: {
@@ -30,7 +30,9 @@ export class AuthenticationManager {
                 type: "TEXT",
                 notNull: true
             }
-        })
+        }).then(() => {
+            if(initCallback) initCallback();
+        });
     }
 
     /**

@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { v7 as uuidV7 } from "uuid";
-import { encryptRsa, decryptAes256, encryptAes256 } from './my-crypto';
+import { encryptRsa, decryptAes256, encryptAes256 } from '../utils/my-crypto';
 
 type SessionInstanceType = {
     id: string;
