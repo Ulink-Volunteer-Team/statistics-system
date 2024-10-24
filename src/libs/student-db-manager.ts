@@ -8,7 +8,7 @@ export type StudentType = {
 
 export class StudentDBManager {
     private db: DatabaseWrapper;
-    tableName = "students";
+    readonly tableName = "students";
     constructor(db: DatabaseWrapper, initCallback?: () => void) {
         this.db = db;
         this.db.prepareTable(this.tableName, {
@@ -53,7 +53,7 @@ export class StudentDBManager {
             operator: "=",
             compared: id,
             logicalOperator: "AND"
-        }])
+        }]);
     }
 
     /**

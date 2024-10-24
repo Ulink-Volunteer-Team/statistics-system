@@ -1,4 +1,3 @@
-import ON_DEATH from "death";
 import express from 'express';
 import bodyParser from 'body-parser';
 import pino from "pino";
@@ -9,6 +8,8 @@ import serverRoutes from './libs/server-apis';
 import SessionManger from './libs/session-manager';
 import AuthenticationManager from './libs/authentication-manager';
 import StudentDBManager from './libs/student-db-manager';
+import RecruitmentDBManager from './libs/recruitment-db-manager';
+import ParticipantsDBManager from './libs/participants-db-manager';
 
 import DeathEvent from "./utils/death-event";
 import DatabaseWrapper from "./utils/sqlite-wrapper";
@@ -27,36 +28,35 @@ const pinoPrettyInst = pinoPretty(pinoPrettyConfig);
 const loggerHttp = pinoHttp(pinoHttpConfig, pinoPrettyInst)
 const logger = pino(pinoPrettyInst);
 
-
-const deathEvent = new DeathEvent();
-ON_DEATH(async () => {
-    logger.info("Shutting DOWN server ...");
-    await deathEvent.prepareToDie();
-    logger.info("Server has been shut down");
-    process.exit(0);
-});
-
-const port = parseInt(process.env.PORT || "3000");
+const deathEvent = new DeathEvent(logger);
+deathEvent.addJob(() => {logger.info("Shutting down server..."); return true;}, "");
 
 const db = new DatabaseWrapper("database", "./", deathEvent, logger);
+const port = parseInt(process.env.PORT || "3000");
 const sessionManager = new SessionManger();
 const app = express()
     .use(bodyParser.json())
     .use(loggerHttp);
 
-let studentDBReady = new Promise<StudentDBManager>((resolve) => {
-    const studentDBManager = new StudentDBManager(db, () => {
-        resolve(studentDBManager);
-    });
-});
-
-let authenticationManagerReady = new Promise<AuthenticationManager>((resolve) => {
-    const authenticationManager = new AuthenticationManager(db, () => {
-        resolve(authenticationManager);
-    });
-});
-
-Promise.all([studentDBReady, authenticationManagerReady]).then(([studentDBManager, authenticationManager]) => {
+Promise.all([
+    new Promise<StudentDBManager>((resolve) => {
+        const studentDBManager = new StudentDBManager(db, () => {
+            resolve(studentDBManager);
+        });
+    }), 
+    new Promise<AuthenticationManager>((resolve) => {
+        const authenticationManager = new AuthenticationManager(db, () => {
+            resolve(authenticationManager);
+        });
+    }),
+    new Promise<RecruitmentDBManager>((resolve) => {
+        const recruitmentDBManager = new RecruitmentDBManager(db, () => {
+            resolve(recruitmentDBManager);
+        });
+    })
+]).then((managers) => {
+    const [studentDBManager, authenticationManager, recruitmentDBManager] = managers;
+    const participantsDBManager = new ParticipantsDBManager(db);
     Object.entries(serverRoutes).forEach(([apiName, route]) => {
         app.post(`/${apiName}`, (req, res) => {
             const url = req.originalUrl.split("/").pop();

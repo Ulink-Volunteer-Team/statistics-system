@@ -1,5 +1,4 @@
 import { Database, SQLite3Error, QueryOptions, QueryResult, RunResult, Statement } from 'node-sqlite3-wasm';
-import process from 'node:process';
 import DeathEvent from './death-event';
 
 export type AvailableDataTypeType = string | number | boolean | null;
@@ -33,6 +32,13 @@ export type TableFrameInitType = {
         notNull?: boolean;
         /** The default value of the column */
         defaultValue?: string | number | boolean | null;
+        /** Foreign key constraint (referenced table and column) */
+        foreignKey?: {
+            references: string;
+            column: string;
+            onDelete?: "CASCADE" | "SET NULL" | "NO ACTION" | "RESTRICT";
+            onUpdate?: "CASCADE" | "SET NULL" | "NO ACTION" | "RESTRICT";
+        }
     }
 }
 
@@ -48,7 +54,7 @@ const checkSqlQueryIdentifierName = (characters: string) => {
 }
 
 export class DatabaseWrapper {
-    private db: Database;
+    db: Database;
     private tables: { [key: string]: TableFrameInitType } = {};
     private dbPath: string;
     private logger: Logger;
@@ -74,12 +80,22 @@ export class DatabaseWrapper {
         try {
             this.db = new Database(this.dbPath);
             this.logger.info(`DatabaseWrapper: Prepared database at ${this.dbPath}`);
+            this.enableForeignKeys(); // Enable foreign key support
         } catch (error) {
             this.logger.error(`DatabaseWrapper: Failed to prepare database: ${(error as SQLite3Error).message}`);
             throw new Error(`Failed to prepare database: ${(error as SQLite3Error).message}`);
         }
 
-        this.deathEvent.addHandler(this.close.bind(this));
+        this.deathEvent.addJob(this.close.bind(this), `Close DB '${dbName}'`);
+    }
+
+    private enableForeignKeys() {
+        try {
+            this.db.run("PRAGMA foreign_keys = ON;");
+            this.logger.info("DatabaseWrapper: Foreign keys are enabled.");
+        } catch (error) {
+            this.logger.error(`DatabaseWrapper: Failed to enable foreign keys: ${(error as SQLite3Error).message}`);
+        }
     }
 
     /**
@@ -91,17 +107,20 @@ export class DatabaseWrapper {
         return new Promise<void>((resolve, reject) => {
             if (!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
 
-            const command = `CREATE TABLE IF NOT EXISTS ${tableName} (\n${Object.keys(frame).map(key => {
-                if (!DataTypeItems.includes(frame[key].type)) {
-                    reject(`Invalid data type: ${frame[key]}`);
-                }
-                return `${key} ${frame[key].type}${frame[key].notNull ? " NOT NULL" : ""}${frame[key].primaryKey ? " PRIMARY KEY" : ""}${frame[key].defaultValue !== undefined ? ` DEFAULT ${JSON.stringify(frame[key].defaultValue)}` : ""}`;
-            }).join(",\n")}\n)`;
+            const command = `CREATE TABLE IF NOT EXISTS ${tableName} (${Object.keys(frame).map(key => {
+                const column = frame[key];
+                if (!checkSqlQueryIdentifierName(key)) reject(`Invalid characters in column name: ${key}`);
+                return `${key} ${column.type}
+                            ${column.notNull ? 'NOT NULL' : ''}
+                            ${column.primaryKey ? 'PRIMARY KEY' : ''}
+                            ${column.defaultValue !== undefined ? `DEFAULT ${JSON.stringify(column.defaultValue)}` : ''}
+                            ${column.foreignKey ? `REFERENCES ${column.foreignKey.references}(${column.foreignKey.column}) ON DELETE ${column.foreignKey.onDelete || 'NO ACTION'} ON UPDATE ${column.foreignKey.onUpdate || 'NO ACTION'}` : ''}`;
+            }).map(l => l.split("\n").map(r => r.trim()).filter(r => r).join(" ")).join(', ')})`;
 
             try { this.db.run(command); }
             catch (error) {
-                this.logger.error(`DatabaseWrapper: Failed get table prepared due to: ${(error as SQLite3Error).message}`);
-                reject(`Failed get table prepared due to: ${(error as SQLite3Error).message}`);
+                this.logger.error(`DatabaseWrapper: Failed to prepare table due to: ${(error as SQLite3Error).message}`);
+                reject(`Failed to prepare table due to: ${(error as SQLite3Error).message}`);
             }
             this.tables[tableName] = frame; // Store table schema for later use
             this.logger.info(`DatabaseWrapper: Table "${tableName}" ready`);
@@ -109,10 +128,11 @@ export class DatabaseWrapper {
         });
     }
 
+
     deleteTable(tableName: string) {
         return new Promise<void>((resolve, reject) => {
-            if(!this.tables[tableName]) reject(`Table ${tableName} does not exist`);
-            if(!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
+            if (!this.tables[tableName]) reject(`Table ${tableName} does not exist`);
+            if (!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
             try {
                 this.db.run(`DROP TABLE IF EXISTS ${tableName}`);
                 delete this.tables[tableName];
@@ -125,7 +145,7 @@ export class DatabaseWrapper {
         });
     }
 
-    private retrieveCache(query: string): Statement | undefined { 
+    private retrieveCache(query: string): Statement | undefined {
         return this.cachedStatements.get(query);
     }
 
@@ -138,8 +158,8 @@ export class DatabaseWrapper {
         this.cachedStatements.clear();
     }
 
-    private cacheSizeGuard(){
-        if(this.cachedStatements.size > this.cacheRecordMaximum){
+    private cacheSizeGuard() {
+        if (this.cachedStatements.size > this.cacheRecordMaximum) {
             this.freeCache();
         }
     }
@@ -209,10 +229,10 @@ export class DatabaseWrapper {
      */
     select<T extends QueryResult = any>(tableName: string, columns: string[], conditions: WhereConditionItemType[] = [], limit: number = 0, offset = 0) {
         return new Promise<T[]>((resolve, reject) => {
-            if(!this.tables[tableName]) reject(`Table ${tableName} not found.`);
+            if (!this.tables[tableName]) reject(`Table ${tableName} not found.`);
             if (!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
             columns.forEach(c => {
-                if(!checkSqlQueryIdentifierName(c)) reject(`Invalid characters in column name: ${c}`);
+                if (!checkSqlQueryIdentifierName(c)) reject(`Invalid characters in column name: ${c}`);
             })
 
             let queryStr = `SELECT ${columns.join(",")} FROM ${tableName}`;
@@ -227,7 +247,7 @@ export class DatabaseWrapper {
                 queryStr += ` OFFSET ?`;
                 param.push(offset);
             }
-            
+
             this.runQuery<T>(queryStr, param)
                 .then(result => resolve(result))
                 .catch(error => {
@@ -278,7 +298,7 @@ export class DatabaseWrapper {
     update(tableName: string, dataFrame: TableFrameDataType, conditions: WhereConditionItemType[]) {
         return new Promise<RunResult>((resolve, reject) => {
             if (!this.tables[tableName]) reject(`Table ${tableName} does not exist`);
-            if(!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
+            if (!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
 
             const keys = Object.keys(dataFrame);
             const values = Object.values(dataFrame);
@@ -308,8 +328,8 @@ export class DatabaseWrapper {
      */
     delete(tableName: string, conditions: WhereConditionItemType[]) {
         return new Promise<RunResult>((resolve, reject) => {
-            if(!this.tables[tableName]) reject(`Table ${tableName} does not exist`);
-            if(!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
+            if (!this.tables[tableName]) reject(`Table ${tableName} does not exist`);
+            if (!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
 
             const queryStr = `DELETE FROM ${tableName}` + this.getConditionStr(conditions);
 
@@ -380,7 +400,6 @@ export class DatabaseWrapper {
         try {
             this.freeCache();
             this.db.close();
-            this.logger.info(`DatabaseWrapper: Closed database connection to "${this.dbPath}"`);
             return true
         } catch (error) {
             this.logger.error(`DatabaseWrapper: Failed to close database: ${(error as SQLite3Error).message}`);

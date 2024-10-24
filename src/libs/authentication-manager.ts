@@ -13,7 +13,7 @@ const SECRET_KEY = String(process.env.SIGN_KEY);
 export class AuthenticationManager {
     db: DatabaseWrapper;
     private static SALT_ROUNDS = 12;
-    tableName = "authentication";
+    readonly tableName = "authentication";
 
     constructor(db: DatabaseWrapper, initCallback?: () => void) {
         this.db = db;
