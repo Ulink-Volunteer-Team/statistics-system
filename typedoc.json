@@ -4,7 +4,7 @@
         "typedoc-plugin-markdown",
         "typedoc-github-wiki-theme"
     ],
-    "out": "./.wiki",
+    "out": "./wiki/statistics-system.wiki/docs",
     "entryPointStrategy": "expand",
     "readme": "none",
     "enumMembersFormat": "table",
