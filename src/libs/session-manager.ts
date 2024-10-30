@@ -29,6 +29,13 @@ export class SessionManger {
         this.sessions = new Map();
     }
 
+    /**
+     * Creates a new session and stores it in the sessions map.
+     * 
+     * @param ip - The IP address of the client initiating the session.
+     * @param userPublicKey - The public key of the user for secure communication.
+     * @returns The unique session ID generated for the session.
+     */
     createSession(ip: string, userPublicKey: string){
         const id = uuidV7();
         const key = crypto.randomBytes(32).toString('hex').concat(crypto.randomBytes(16).toString('hex')); // key-iv
@@ -43,6 +50,12 @@ export class SessionManger {
         return id;
     }
 
+    /**
+     * Checks if a session with the given ID exists in the sessions map.
+     * Returns true if the session exists, false otherwise.
+     * @param id - The ID of the session to check.
+     * @returns Whether the session exists.
+     */
     haveSession(id: string) {
         try{
             return this.sessions.has(id);
@@ -52,17 +65,36 @@ export class SessionManger {
         }
     }
 
+    /**
+     * Gets the session data by ID.
+     * 
+     * @param id - The ID of the session to retrieve.
+     * @returns The session data if found, otherwise throws an error.
+     */
     getSessionData(id: string) {
         const session = this.sessions.get(id);
         if (!session) throw new Error("Fail to find the details of session " + id);
         return session;
     }
 
+    /**
+     * Retrieves the encryption key of a session by its ID.
+     * 
+     * @param id - The ID of the session to retrieve the key for.
+     * @returns The encryption key if the session exists, undefined otherwise.
+     */
     getSessionKey(id: string) {
         const session = this.sessions.get(id);
         return session?.key;
     }
 
+    /**
+     * Decrypts the given data using the key of the given session ID.
+     * 
+     * @param data - The encrypted data to decrypt.
+     * @param sessionID - The ID of the session to retrieve the key for.
+     * @returns The decrypted data if the session exists, throws an error otherwise.
+     */
     decryptClientData<T extends ClientDataType = ClientDataType>(data: string, sessionID: string) {
         const key = this.getSessionKey(sessionID);
         if (!key) throw new Error("Fail to find the details of session " + sessionID);
@@ -75,6 +107,13 @@ export class SessionManger {
         }
     }
 
+    /**
+     * Encrypts the given data using the key of the given session ID.
+     * 
+     * @param data - The data to encrypt.
+     * @param sessionID - The ID of the session to retrieve the key for.
+     * @returns The encrypted data if the session exists, throws an error otherwise.
+     */
     encryptClientData<T extends ClientDataType = ClientDataType>(data: T, sessionID: string) {
         const session = this.sessions.get(sessionID);
         if (!session) throw new Error("Fail to find the details of session " + sessionID);
@@ -86,6 +125,11 @@ export class SessionManger {
         }
     }
 
+    /**
+     * Closes a session by removing it from the session map.
+     * 
+     * @param id - The ID of the session to close.
+     */
     closeSession(id: string) {
         this.sessions.delete(id);
     }

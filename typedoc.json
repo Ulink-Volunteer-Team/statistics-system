@@ -1,0 +1,16 @@
+{
+    "$schema": "https://typedoc-plugin-markdown.org/schema.json",
+    "plugin": [
+        "typedoc-plugin-markdown",
+        "typedoc-github-wiki-theme"
+    ],
+    "out": "./docs",
+    "entryPointStrategy": "expand",
+    "readme": "none",
+    "enumMembersFormat": "table",
+    "parametersFormat": "table",
+    "propertiesFormat": "table",
+    "typeDeclarationFormat": "table",
+    "indexFormat": "table",
+    "gitRevision": "main"
+}

@@ -15,6 +15,11 @@ export class AuthenticationManager {
     private static SALT_ROUNDS = 12;
     readonly tableName = "authentication";
 
+    /**
+     * Constructs a new AuthenticationManager instance.
+     * @param db The DatabaseWrapper instance to be used for database operations.
+     * @param initCallback A callback function to be called after the database table is ready.
+     */
     constructor(db: DatabaseWrapper, initCallback?: () => void) {
         this.db = db;
         this.db.prepareTable(this.tableName, {
@@ -44,6 +49,12 @@ export class AuthenticationManager {
         return bcrypt.hash(password, AuthenticationManager.SALT_ROUNDS);
     }
 
+    /**
+     * Verifies if the given password matches the given hash.
+     * @param password The plain-text password to verify
+     * @param hash The hash to compare against
+     * @returns Whether the password matches the hash
+     */
     async verifyHash(password: string, hash: string) {
         return bcrypt.verify(password, hash);
     }
@@ -148,6 +159,11 @@ export class AuthenticationManager {
         await this.db.insert(this.tableName, [{id: id, password: hashedPassword, permissions}]);
     }
 
+    /**
+     * Retrieves the permissions of a user
+     * @param id The id of the user whose permissions to retrieve
+     * @returns The permission of the user, or a rejected promise if the user does not exist
+     */
     async getUserPermissions(id: string): Promise<string> {
         const users = await this.db.select<UserAccountType>(this.tableName, ["*"], [{ key: 'id', operator: '=', compared: id, logicalOperator: 'AND' }]);
         if(!users) return Promise.reject(`User "${id}" does not exist`);

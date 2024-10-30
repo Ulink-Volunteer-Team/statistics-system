@@ -102,7 +102,7 @@ export class DatabaseWrapper {
     /**
      * @param tableName The name of the table.
      * @param frame An object where the keys are the column names and the values are the data types.
-     * @description Creates a new table with the specified columns.
+     * Creates a new table with the specified columns.
      */
     prepareTable(tableName: string, frame: TableFrameInitType) {
         return new Promise<void>((resolve, reject) => {
@@ -130,6 +130,11 @@ export class DatabaseWrapper {
     }
 
 
+    /**
+     * Deletes a table from the database.
+     * @param tableName The name of the table to delete.
+     * @throws If the table does not exist or if there is an error deleting the table.
+     */
     deleteTable(tableName: string) {
         return new Promise<void>((resolve, reject) => {
             if (!this.tables[tableName]) reject(`Table ${tableName} does not exist`);
@@ -165,13 +170,6 @@ export class DatabaseWrapper {
         }
     }
 
-    /**
-     * @description Runs a SQL query with the given parameters.
-     * @param query The SQL query to run.
-     * @param params An array of parameters to pass to the query.
-     * @returns The result of the query.
-     * @throws If there is an error running the query.
-     */
     private runCommand(query: string, params: AvailableDataTypeType[] = []) {
         return new Promise<RunResult>((resolve, reject) => {
             try {
@@ -264,7 +262,7 @@ export class DatabaseWrapper {
 
 
     /**
-     * @description Inserts a new row into the table.
+     * Inserts a new row into the table.
      * @param tableName The name of the table to insert into.
      * @param dataFrame An object with the column names as keys and the values to insert as values.
      * @throws If there is an error inserting the data.
@@ -294,7 +292,7 @@ export class DatabaseWrapper {
     }
 
     /**
-     * @description Updates rows in the specified table where the conditions are met.
+     * Updates rows in the specified table where the conditions are met.
      * @param tableName The name of the table to update.
      * @param dataFrame An object representing the column names and the new values to update.
      * @param conditions An array of conditions to determine which rows to update.

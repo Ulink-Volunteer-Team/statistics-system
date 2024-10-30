@@ -7,6 +7,12 @@ export class EventDBManager {
     studentDB: StudentDBManager;
     recruitmentDB: RecruitmentDBManager;
     readonly tableName = "event";
+    /**
+     * Constructs a new EventDBManager instance.
+     * @param db The DatabaseWrapper instance to be used for database operations.
+     * @param studentDB The StudentDBManager instance to be used for student database operations.
+     * @param recruitmentDB The RecruitmentDBManager instance to be used for recruitment database operations.
+     */
     constructor(db: DatabaseWrapper, studentDB: StudentDBManager, recruitmentDB: RecruitmentDBManager) {
         this.db = db;
         this.studentDB = studentDB;
@@ -22,6 +28,13 @@ export class EventDBManager {
         this.db.logger.info(`EventDBManager: ready at table "${this.tableName}"`);
     }
 
+    /**
+     * Adds a record to the Event table representing the given student volunteering for the given event.
+     * @param studentID The ID of the student volunteering for the event.
+     * @param eventID The ID of the event.
+     * @returns The result of the database insertion operation.
+     * @throws An error if the student or event does not exist in the database.
+     */
     async addRecord(studentID: string, eventID: string) {
         const haveStudent = await this.studentDB.haveStudentID(studentID);
         const haveEvent = await this.recruitmentDB.haveRecruitment(eventID);
@@ -31,6 +44,12 @@ export class EventDBManager {
     }
     
 
+    /**
+     * Retrieves a list of student IDs of students volunteering for the given event.
+     * @param eventID The ID of the event.
+     * @returns A promise that resolves to an array of student IDs.
+     * @throws An error if the event does not exist in the database.
+     */
     async getStudentIDsByEventID(eventID: string) {
         if(!(await this.recruitmentDB.haveRecruitment(eventID))) return Promise.reject(`Event with id "${eventID}" does not exist`);
         return (await this.db.select<{StudentID: string}>(this.tableName, ["StudentID"], [{
@@ -41,6 +60,12 @@ export class EventDBManager {
         }])).map(item => item.StudentID);
     }
 
+    /**
+     * Retrieves a list of event IDs of events that the given student is volunteering for.
+     * @param studentID The ID of the student.
+     * @returns A promise that resolves to an array of event IDs.
+     * @throws An error if the student does not exist in the database.
+     */
     async getEventIDsByStudentID(studentID: string) {
         if(!(await this.studentDB.haveStudentID(studentID))) return Promise.reject(`Student with id "${studentID}" does not exist`);
         return (await this.db.select<{EventID: string}>(this.tableName, ["EventID"], [{

@@ -85,6 +85,13 @@ export const handleApiRequest = async <PayloadType extends z.ZodType>(
     }
 }
 
+/**
+ * Verifies the token for the given session ID. If the token is invalid or missing or the session ID is missing or invalid, an error is thrown.
+ * @param sessionID The session ID to verify the token for
+ * @param token The token to verify
+ * @param authenticationManager The authentication manager to use for the verification
+ * @throws {Error} If the token is invalid or missing or the session ID is missing or invalid
+ */
 const unwrapForInvalidToken = (sessionID: string | undefined, token: string | undefined, authenticationManager: AuthenticationManager) => {
     if (!sessionID) throw new Error('Missing session ID');
     if (!token) throw new Error('Missing token');
@@ -95,6 +102,14 @@ const unwrapForInvalidToken = (sessionID: string | undefined, token: string | un
     if (!authenticationManager.verifyToken(userId, token)) throw new Error('Invalid token');
 }
 
+/**
+ * Rejects an API request, logs the warning, and sends a JSON response with an error message.
+ *
+ * @param msg - The error message to include in the response.
+ * @param req - The request object, used for logging.
+ * @param res - The response object, used to send the error response.
+ * @param code - The HTTP status code for the response. Defaults to 400.
+ */
 const rejectRequest = (msg: string, req: Request, res: Response, code = 400) => {
     req.log.warn({handled: true, msg, sessionID: req.body.session});
     res.status(code).json({

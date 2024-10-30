@@ -7,6 +7,11 @@ export class DeathEvent {
     handlers: Map<number, () => Promise<boolean> | boolean> = new Map();
     handlerNames: Map<number, string> = new Map();
     count = 0;
+    /**
+     * Initialize the DeathEvent manager.
+     * This will trigger all handlers when death signal is received.
+     * @param logger The logger to use for logging messages.
+     */
     constructor(logger: Logger) {
         ON_DEATH(async (signal) => {
             logger.info(`DeathEvent: ${signal} received`);
