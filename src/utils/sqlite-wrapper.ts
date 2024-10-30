@@ -54,13 +54,13 @@ const checkSqlQueryIdentifierName = (characters: string) => {
 }
 
 export class DatabaseWrapper {
-    db: Database;
+    readonly db: Database;
     private tables: { [key: string]: TableFrameInitType } = {};
-    private dbPath: string;
-    private logger: Logger;
-    cacheRecordMaximum: number = 512;
+    readonly dbPath: string;
+    readonly logger: Logger;
+    readonly cacheRecordMaximum: number = 512;
     private cachedStatements: Map<string, Statement> = new Map();
-    private deathEvent: DeathEvent;
+    readonly deathEvent: DeathEvent;
 
     /**
      * @param dbName The name of the database file, without extension.

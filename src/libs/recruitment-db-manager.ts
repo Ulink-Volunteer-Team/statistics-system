@@ -1,13 +1,13 @@
 import DatabaseWrapper from "../utils/sqlite-wrapper";
 import { v4 as uuidV4 } from "uuid";
 
-type RecruitmentDataType = {
-    id?: string;
+export type RecruitmentDataType = {
+    id: string;
     department: string;
     formFilledBy: string;
     eventName: string;
-    dateTime: string;
-    volunteerHours: string;
+    eventTime: number;
+    volunteerHours: number;
     additionalNotes: string;
 }
 
@@ -33,8 +33,12 @@ export class RecruitmentDBManager {
                 type: "TEXT",
                 notNull: true
             },
-            eventDateTime: {
-                type: "TEXT",
+            eventTime: {
+                type: "INTEGER",
+                notNull: true
+            },
+            volunteerHours: {
+                type: "INTEGER",
                 notNull: true
             },
             additionalNotes: {
@@ -46,15 +50,53 @@ export class RecruitmentDBManager {
         });
     }
 
-    addRecruitment(recruitment: RecruitmentDataType) {
-        return this.db.insert("recruitment", [{
+    async addRecruitment(recruitment: Partial<RecruitmentDataType>) {
+        return await this.db.insert("recruitment", [{
+            id: uuidV4(),
+            department: "",
+            formFilledBy: "",
+            eventName: "",
+            eventTime: Date.parse("1970-01-01"),
+            volunteerHours: 0,
+            additionalNotes: "",
             ...recruitment,
-            id: uuidV4()
         }]);
     }
 
-    fuzzySearch(fields: ("department" | "formFilledBy" | "eventName")[], search: string[]) {
-        return this.db.select<RecruitmentDataType>("recruitment", ["*"], fields.map((_, i) => ({
+    async getRecruitment(id: string) {
+        return (await this.db.select<RecruitmentDataType>("recruitment", ["*"], [{
+            key: "id",
+            operator: "=",
+            compared: id,
+            logicalOperator: "AND"
+        }]))[0];
+    }
+
+    async haveRecruitment(id: string) {
+        return (await this.db.select<RecruitmentDataType>("recruitment", ["id"], [{
+            key: "id",
+            operator: "=",
+            compared: id,
+            logicalOperator: "AND"
+        }])).length > 0;
+    }
+
+    async updateRecruitment(id: string, recruitment: Partial<RecruitmentDataType>) {
+        if(!await this.haveRecruitment(id)) return Promise.reject(`Recruitment with id "${id}" does not exist`);
+        const newRecruitment = {
+            ...(await this.getRecruitment(id)),
+            ...recruitment
+        };
+        return await this.db.update("recruitment", newRecruitment, [{
+            key: "id",
+            operator: "=",
+            compared: id,
+            logicalOperator: "AND"
+        }]);
+    }
+
+    async fuzzySearch(fields: ("department" | "formFilledBy" | "eventName")[], search: string[]) {
+        return await this.db.select<RecruitmentDataType>("recruitment", ["*"], fields.map((_, i) => ({
             key: fields[i],
             operator: "LIKE",
             compared: `%${search[i]}%`,
@@ -62,8 +104,8 @@ export class RecruitmentDBManager {
         })));
     }
 
-    removeRecruitment(id: string) {
-        return this.db.delete("recruitment", [{
+    async removeRecruitment(id: string) {
+        return await this.db.delete("recruitment", [{
             key: "id",
             operator: "=",
             compared: id,

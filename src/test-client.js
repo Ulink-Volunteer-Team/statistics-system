@@ -1,5 +1,7 @@
 import crypto from "crypto";
 import http from "http";
+import { Buffer, btoa } from "buffer";
+import console from "console";
 
 // Set the base URL for the API
 const baseUrl = 'localhost';
@@ -103,7 +105,7 @@ console.log(`Handshake successful. \nID: ${id}\nKey: ${key}\nAPI version: ${api_
 const registerState = await post("/sign-up", {
     session: id,
     data: encryptAes256(JSON.stringify({
-        username: "test",
+        id: "test",
         password: "test",
         permissions: "admin"
     }), key)
@@ -156,6 +158,7 @@ const getStudentBulkState = await post("/get-students", {
         offset: 0
     }), key)
 });
+console.log(getStudentBulkState)
 console.log(`Get student bulk ${getStudentBulkState.success ? "successful" : "failed"}`);
 if(getStudentBulkState.success) console.log(`Student bulk: \n${JSON.parse(decryptAes256(getStudentBulkState.data, key)).students.map((s) => (s.name + " - " + s.id)).join("\n")}`);
 
@@ -166,6 +169,7 @@ const fuzzySearchStudentState = await post("/fuzzy-search-student", {
         queryName: "test122"
     }), key)
 });
+console.log(fuzzySearchStudentState)
 console.log(`\nFuzzy search student ${fuzzySearchStudentState.success ? "successful" : "failed"}`);
 if(fuzzySearchStudentState.success) {
     let fuzzySearchResult = JSON.parse(decryptAes256(fuzzySearchStudentState.data, key)).students.map((s) => (s.name + " - " + s.id));

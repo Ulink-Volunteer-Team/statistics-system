@@ -9,7 +9,7 @@ import SessionManger from './libs/session-manager';
 import AuthenticationManager from './libs/authentication-manager';
 import StudentDBManager from './libs/student-db-manager';
 import RecruitmentDBManager from './libs/recruitment-db-manager';
-import ParticipantsDBManager from './libs/participants-db-manager';
+import EventDBManager from './libs/event-db-manager';
 
 import DeathEvent from "./utils/death-event";
 import DatabaseWrapper from "./utils/sqlite-wrapper";
@@ -56,11 +56,16 @@ Promise.all([
     })
 ]).then((managers) => {
     const [studentDBManager, authenticationManager, recruitmentDBManager] = managers;
-    const participantsDBManager = new ParticipantsDBManager(db);
+    const eventsDBManager = new EventDBManager(db, studentDBManager, recruitmentDBManager);
     Object.entries(serverRoutes).forEach(([apiName, route]) => {
         app.post(`/${apiName}`, (req, res) => {
             const url = req.originalUrl.split("/").pop();
-            route(req, res, sessionManager, studentDBManager, authenticationManager)
+            route(req, res, sessionManager, {
+                studentDBManager,
+                authenticationManager,
+                recruitmentDBManager,
+                eventsDBManager
+            })
                 .catch(e => {
                     req.log.error({ handled: false, msg: `Unhandled error: ${String(e)}` });
                 })

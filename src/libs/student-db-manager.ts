@@ -103,7 +103,7 @@ export class StudentDBManager {
     }
 
     /**
-     * @description Performs a fuzzy search for students whose names match the given pattern.
+     * @description Performs a fuzzy search for students whose names match the *given pattern*.
      * @param name The pattern to search for in student names.
      * @returns An array of students with names matching the pattern.
      */

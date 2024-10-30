@@ -1,6 +1,6 @@
 import crypto from 'crypto';
-import { v7 as uuidV7 } from "uuid";
-import { encryptRsa, decryptAes256, encryptAes256 } from '../utils/my-crypto';
+import {v7 as uuidV7} from "uuid";
+import {decryptAes256, encryptAes256, encryptRsa} from '../utils/my-crypto';
 
 type SessionInstanceType = {
     id: string;
@@ -8,6 +8,10 @@ type SessionInstanceType = {
     key: string;
     userPublicKey: string;
     setupTime: number;
+}
+
+type ClientDataType = {
+    [key: string]: unknown;
 }
 
 export function handshake(manager: SessionManger, userPublicKey: string, ip: string){
@@ -20,7 +24,7 @@ export function handshake(manager: SessionManger, userPublicKey: string, ip: str
 }
 
 export class SessionManger {
-    sessions: Map<string, SessionInstanceType>;
+    readonly sessions: Map<string, SessionInstanceType>;
     constructor(){
         this.sessions = new Map();
     }
@@ -39,6 +43,15 @@ export class SessionManger {
         return id;
     }
 
+    haveSession(id: string) {
+        try{
+            return this.sessions.has(id);
+        }
+        catch {
+            return false;
+        }
+    }
+
     getSessionData(id: string) {
         const session = this.sessions.get(id);
         if (!session) throw new Error("Fail to find the details of session " + id);
@@ -50,24 +63,23 @@ export class SessionManger {
         return session?.key;
     }
 
-    decryptClientData(data: string, sessionID: string) {
-        const session = this.sessions.get(sessionID);
-        if (!session) throw new Error("Fail to find the details of session " + sessionID);
+    decryptClientData<T extends ClientDataType = ClientDataType>(data: string, sessionID: string) {
+        const key = this.getSessionKey(sessionID);
+        if (!key) throw new Error("Fail to find the details of session " + sessionID);
         try {
-            const plain = decryptAes256(data, session.key);
-            return JSON.parse(plain);
+            const plain = decryptAes256(data, key);
+            return JSON.parse(plain) as Partial<T>;
         }
         catch (e) {
             throw new Error("Fail to get the decrypted data: " + String(e));
         }
     }
 
-    encryptClientData(data: any, sessionID: string) {
+    encryptClientData<T extends ClientDataType = ClientDataType>(data: T, sessionID: string) {
         const session = this.sessions.get(sessionID);
         if (!session) throw new Error("Fail to find the details of session " + sessionID);
         try {
-            const encrypted = encryptAes256(JSON.stringify(data), session.key);
-            return encrypted;
+            return encryptAes256(JSON.stringify(data), session.key);
         }
         catch (e) {
             throw new Error("Fail to get the encrypted data: " + String(e));

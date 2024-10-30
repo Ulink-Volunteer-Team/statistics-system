@@ -1,11 +1,12 @@
 {
-  "name": "student-community-service-statistics-system",
+  "name": "ulink-volunteer-team-statistics-system-backend",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "build": "node ./build.cjs",
     "release": "node ./build.cjs prod"
   },
+  "private": true,
   "type": "module",
   "author": "",
   "license": "MIT",
@@ -18,7 +19,8 @@
     "node-sqlite3-wasm": "^0.8.23",
     "pino": "^9.5.0",
     "pino-http": "^10.3.0",
-    "uuid": "^10.0.0"
+    "uuid": "^10.0.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/death": "^1.1.5",
