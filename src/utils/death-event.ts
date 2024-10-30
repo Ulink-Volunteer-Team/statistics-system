@@ -27,6 +27,7 @@ export class DeathEvent {
     /**
      * Add a job to the death event.
      * @param callback The callback to be called when the death event is triggered.
+     * @param name The name of the handler. If not provided, a default one would be provided
      * @returns A unique identifier for the handler.
      */
     addJob(callback: Handler, name?: string) {

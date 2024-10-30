@@ -1,4 +1,4 @@
-import { DatabaseWrapper } from '../utils/sqlite-wrapper';
+import {DatabaseWrapper} from '../utils/sqlite-wrapper';
 import bcrypt from 'bcrypt-fast';
 import * as jwt from 'jsonwebtoken';
 
@@ -70,11 +70,10 @@ export class AuthenticationManager {
     * @returns Token generated, expires in 1 day
     */
     async login(id: string, password: string): Promise<string> {
-        if (!this.haveUser(id)) return Promise.reject(`Cannot find user ${id}.`);
-        if (!this.haveMatchingUser(id, password)) Promise.reject(`Wrong password`);
+        if (!await this.haveUser(id)) return Promise.reject(`Cannot find user ${id}.`);
+        if (!await this.haveMatchingUser(id, password)) await Promise.reject(`Wrong password`);
 
-        const token = this.generateToken(id);
-        return token;
+        return this.generateToken(id);
     }
 
     /**
@@ -120,23 +119,24 @@ export class AuthenticationManager {
      * @param password The new plain-text password
      */
     async updatePassword(id: string, password: string): Promise<void> {
-        if (!this.haveUser(id)) {
+        if (!await this.haveUser(id)) {
             return Promise.reject(`User "${id}" does not exist`);
         }
 
         const hashedPassword = await this.generateHash(password);
 
-        this.db.update(
-            this.tableName, 
-            { password: hashedPassword },
-            [{ key: 'id', operator: '=', compared: id, logicalOperator: 'AND' }]
-        );
+        await (this.db.update(
+            this.tableName,
+            {password: hashedPassword},
+            [{key: 'id', operator: '=', compared: id, logicalOperator: 'AND'}]
+        ));
     }
 
     /**
      * Adds a new user to the database with a hashed password.
      * @param id The id to add
      * @param password The plain-text password
+     * @param permissions The permission of the user (not implemented)
      */
     async addUser(id: string, password: string, permissions: string): Promise<void> {
         if (await this.haveUser(id)) {
@@ -145,7 +145,7 @@ export class AuthenticationManager {
 
         const hashedPassword = await this.generateHash(password);
 
-        this.db.insert(this.tableName, [{ id: id, password: hashedPassword, permissions }]);
+        await this.db.insert(this.tableName, [{id: id, password: hashedPassword, permissions}]);
     }
 
     async getUserPermissions(id: string): Promise<string> {
@@ -158,12 +158,12 @@ export class AuthenticationManager {
      * Deletes a user from the database.
      * @param id The id to delete
      */
-    deleteUser(id: string): void {
-        if (!this.haveUser(id)) {
+    async deleteUser(id: string): Promise<void> {
+        if (!await this.haveUser(id)) {
             throw new Error(`User "${id}" does not exist`);
         }
 
-        this.db.delete(this.tableName, [{ key: 'id', operator: '=', compared: id, logicalOperator: 'AND' }]);
+        await this.db.delete(this.tableName, [{ key: 'id', operator: '=', compared: id, logicalOperator: 'AND' }]);
     }
 }
 

@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import http from "http";
-import { Buffer, btoa } from "buffer";
+import { Buffer, btoa } from "node:buffer";
 import console from "console";
 
 // Set the base URL for the API

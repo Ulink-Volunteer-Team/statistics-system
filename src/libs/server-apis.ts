@@ -1,8 +1,8 @@
 import {Request, Response} from 'express';
 import SessionManger, {handshake} from './session-manager';
 import AuthenticationManager from './authentication-manager';
-import RecruitmentDBManager, {RecruitmentDataType} from './recruitment-db-manager';
-import StudentDBManager, {type StudentType} from './student-db-manager';
+import RecruitmentDBManager from './recruitment-db-manager';
+import StudentDBManager from './student-db-manager';
 import EventDBManager from './event-db-manager';
 import {z} from "zod";
 import * as schema from './api-schema';

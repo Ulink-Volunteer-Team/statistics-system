@@ -65,6 +65,7 @@ export class DatabaseWrapper {
     /**
      * @param dbName The name of the database file, without extension.
      * @param dbDirectory Optional: directory path where the DB file will be saved.
+     * @param deathEvent The death event manager
      * @param logger Optional: logger for debugging.
      */
     constructor(dbName: string, dbDirectory: string = "./", deathEvent: DeathEvent, logger: Logger = { info: console.log, error: console.error }) {
@@ -171,7 +172,7 @@ export class DatabaseWrapper {
      * @returns The result of the query.
      * @throws If there is an error running the query.
      */
-    private runCommand(query: string, params: any[] = []) {
+    private runCommand(query: string, params: AvailableDataTypeType[] = []) {
         return new Promise<RunResult>((resolve, reject) => {
             try {
                 const cached = this.retrieveCache(query);
@@ -191,7 +192,7 @@ export class DatabaseWrapper {
         });
     }
 
-    private runQuery<T extends QueryResult = any>(query: string, params: AvailableDataTypeType[] = [], options: QueryOptions = {}) {
+    private runQuery<T extends QueryResult = QueryResult>(query: string, params: AvailableDataTypeType[] = [], options: QueryOptions = {}) {
         return new Promise<T[]>((resolve, reject) => {
             try {
                 const cached = this.retrieveCache(query);
@@ -221,13 +222,16 @@ export class DatabaseWrapper {
 
     /**
      * Fetches data from the specified table based on the given conditions.
-     * 
+     *
      * @param tableName The name of the table to query from.
+     * @param columns The columns to fetch from the table.
      * @param conditions An array of conditions to filter the data by.
+     * @param limit The maximum number of rows to fetch.
+     * @param offset The number of rows to skip before fetching.
      * @returns An array of objects representing the fetched data.
      * @throws If there is an error fetching the filtered data.
      */
-    select<T extends QueryResult = any>(tableName: string, columns: string[], conditions: WhereConditionItemType[] = [], limit: number = 0, offset = 0) {
+    select<T extends QueryResult = QueryResult>(tableName: string, columns: string[], conditions: WhereConditionItemType[] = [], limit: number = 0, offset = 0) {
         return new Promise<T[]>((resolve, reject) => {
             if (!this.tables[tableName]) reject(`Table ${tableName} not found.`);
             if (!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
@@ -261,6 +265,7 @@ export class DatabaseWrapper {
 
     /**
      * @description Inserts a new row into the table.
+     * @param tableName The name of the table to insert into.
      * @param dataFrame An object with the column names as keys and the values to insert as values.
      * @throws If there is an error inserting the data.
      */
