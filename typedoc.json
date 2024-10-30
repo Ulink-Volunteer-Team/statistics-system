@@ -4,7 +4,7 @@
         "typedoc-plugin-markdown",
         "typedoc-github-wiki-theme"
     ],
-    "out": "./docs",
+    "out": "./.wiki",
     "entryPointStrategy": "expand",
     "readme": "none",
     "enumMembersFormat": "table",
