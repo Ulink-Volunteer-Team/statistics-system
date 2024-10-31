@@ -1,5 +1,9 @@
 node_modules
 dist
+
+# docs should be put to the wiki page
+docs 
+
 .vscode/settings.json
 
 .DS_Store

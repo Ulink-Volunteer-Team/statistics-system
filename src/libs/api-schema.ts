@@ -34,6 +34,11 @@ export const data_recruitmentSchema = z.object({
     id: z.string().optional()
 });
 
+export const data_studentSchema = z.object({
+    name: z.string(),
+    id: z.string()
+})
+
 export const api_signInSchema = z.object({
     id: z.string(),
     password: z.string(),
@@ -52,20 +57,12 @@ export const api_getStudentsSchema = z.object({
 
 export const api_addStudentSchema = z.object({
     token: z.string(),
-    student: z.object({
-        name: z.string(),
-        id: z.string()
-    })
+    student: data_studentSchema,
 });
 
 export const api_addStudentBulkSchema = z.object({
     token: z.string(),
-    students: z.array(
-        z.object({
-            name: z.string(),
-            id: z.string()
-        })
-    )
+    students: z.array(data_studentSchema),
 });
 
 export const api_fuzzySearchStudentSchema = z.object({
@@ -123,4 +120,10 @@ export const api_getEventsFromVolunteerSchema = z.object({
     studentID: z.string(),
     limit: z.number(),
     offset: z.number()
+})
+
+export const api_getStudentVolunteerTime = z.object({
+    token: z.string(),
+    studentID: z.string(),
+    beginTime: z.number().optional(),
 })

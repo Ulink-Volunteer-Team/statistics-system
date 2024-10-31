@@ -67,13 +67,31 @@ export class EventDBManager {
      * @throws An error if the student does not exist in the database.
      */
     async getEventIDsByStudentID(studentID: string) {
-        if(!(await this.studentDB.haveStudentID(studentID))) return Promise.reject(`Student with id "${studentID}" does not exist`);
+        if(!(await this.studentDB.haveStudentID(studentID))) return Promise.reject(`Student with id "${studentID}" does not exist in database`);
         return (await this.db.select<{EventID: string}>(this.tableName, ["EventID"], [{
             key: "StudentID",
             operator: "=",
             compared: studentID,
             logicalOperator: "AND"
         }])).map(item => item.EventID);
+    }
+
+    /**
+     * Calculates the total volunteer hours for a given student starting from a specific time.
+     * @param studentID The ID of the student whose volunteer hours are to be calculated.
+     * @param beginTime The starting time (in milliseconds) from which to calculate the volunteer hours. Defaults to 0.
+     * @returns A promise that resolves to the total number of volunteer hours.
+     */
+    async calculateVolunteerHour(studentID: string, beginTime = 0): Promise<number> {
+        const events = (await this.getEventIDsByStudentID(studentID));
+
+        let total = 0;
+        for(const eventID of events){
+            const event = await this.recruitmentDB.getRecruitment(eventID);
+            if(event.eventTime > beginTime) total += event.volunteerHours; 
+        }
+
+        return total;
     }
 }
 

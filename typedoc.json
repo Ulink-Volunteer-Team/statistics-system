@@ -1,12 +1,17 @@
 {
     "$schema": "https://typedoc-plugin-markdown.org/schema.json",
     "plugin": [
+        "typedoc-github-wiki-theme",
         "typedoc-plugin-markdown",
-        "typedoc-github-wiki-theme"
     ],
-    "out": "./wiki/statistics-system.wiki/docs",
+    "entryFileName": "modules.md",
+    "name": "Modules",
+    "out": "./docs/statistics-system.wiki/docs",
+    "outputFileStrategy": "modules",
     "entryPointStrategy": "expand",
+
     "readme": "none",
+    "useCodeBlocks": true,
     "enumMembersFormat": "table",
     "parametersFormat": "table",
     "propertiesFormat": "table",

@@ -154,6 +154,16 @@ export class RecruitmentDBManager {
             logicalOperator: "AND"
         }]);
     }
+
+    async getVolunteerHour(id: string): Promise<number> {
+        if(!(await this.haveRecruitment(id))) return Promise.reject(`Event (Recruitment) with id "${id}" does not exist in database`);
+        return (await this.db.select<RecruitmentDataType>("recruitment", ["id"], [{
+            key: "id",
+            operator: "=",
+            compared: id,
+            logicalOperator: "AND"
+        }]))[0].volunteerHours
+    }
 }
 
 export default RecruitmentDBManager;
