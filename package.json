@@ -23,6 +23,7 @@
     "node-sqlite3-wasm": "^0.8.23",
     "pino": "^9.5.0",
     "pino-http": "^10.3.0",
+    "trek-captcha": "github:trekjs/captcha",
     "uuid": "^10.0.0",
     "zod": "^3.23.8"
   },

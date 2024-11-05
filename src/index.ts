@@ -56,7 +56,7 @@ async function main(config: z.infer<typeof configSchema>) {
 
     const limiter = rateLimit({
         windowMs: 60000,
-        max: config.IP_MAX_PER_MIN,
+        limit: config.IP_MAX_PER_MIN,
         message: 'Too many requests from this IP, please try again later.'
     });
 

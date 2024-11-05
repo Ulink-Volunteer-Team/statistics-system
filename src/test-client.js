@@ -4,7 +4,7 @@ import { Buffer, btoa } from "node:buffer";
 import console from "console";
 
 // Set the base URL for the API
-const baseUrl = 'localhost';
+const baseUrl = '83.229.127.91';
 const port = 3000;
 
 // Generate a public-private key pair
@@ -130,7 +130,7 @@ const addStudentState = await post("/add-student", {
         token: token,
         student: {
             name: "test",
-            // id: "test-student@example.com"
+            id: "test-student@example.com"
         }
     }), key)
 });
