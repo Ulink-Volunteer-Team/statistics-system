@@ -33,7 +33,7 @@ const configSchema = z.object({
     DB_NAME: z.string(),
     DB_DIR: z.string(),
 
-    SERVER_PORT: z.string(),
+    SERVER_PORT: z.number(),
 
     IP_MAX_PER_MIN: z.number(),
     BANNED_IP: z.array(z.string()),
