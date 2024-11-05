@@ -5,7 +5,7 @@
         "name": "Build",
         "type": "node",
         "request": "launch",
-        "runtimeExecutable": "npm",
+        "runtimeExecutable": "pnpm",
         "runtimeArgs": [
           "run",
           "build"
@@ -17,7 +17,7 @@
         "name": "Debug",
         "type": "node",
         "request": "launch",
-        "preLaunchTask": "npm: run build",    // Build task before running the program
+        "preLaunchTask": "pnpm: run build",    // Build task before running the program
         "program": "${workspaceFolder}/dist/index.cjs",
         "console": "integratedTerminal",
         "internalConsoleOptions": "neverOpen",

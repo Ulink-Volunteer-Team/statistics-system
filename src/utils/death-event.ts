@@ -15,13 +15,13 @@ export class DeathEvent {
     constructor(logger: Logger) {
         ON_DEATH(async (signal) => {
             logger.info(`DeathEvent: ${signal} received`);
-            logger.info("Doing cleanup...");
+            logger.info("DeathEvent: Doing cleanup...");
             const cleanupSuccess = await this.prepareToDie(logger);
             if(cleanupSuccess) {
-                logger.info("Cleanup done");
+                logger.info("DeathEvent: Cleanup done");
                 process.exit(0);
             }else {
-                logger.error("Fail to run all cleanup jobs");
+                logger.error("DeathEvent: Fail to run all cleanup jobs");
                 setTimeout(async () => {
                     process.exit(1);
                 }, 100);
@@ -60,11 +60,11 @@ export class DeathEvent {
         for (const id of this.handlers.keys()) {
             const handler = this.handlers.get(id)!;
             if (!await handler()) {
-                logger.error(`Cleanup job "${this.handlerNames.get(id)}" failed`);
+                logger.error(`DeathEvent: Cleanup job "${this.handlerNames.get(id)}" failed`);
                 flag = false;
             }
             else {
-                logger.info(`Cleanup job "${this.handlerNames.get(id)}" done`);
+                logger.info(`DeathEvent: Cleanup job "${this.handlerNames.get(id)}" done`);
             }
         }
         return flag;

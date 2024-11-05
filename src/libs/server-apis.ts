@@ -8,7 +8,7 @@ import { z } from "zod";
 import * as schema from './api-schema';
 import { Logger } from 'pino';
 
-type RouteDataAccessType = {
+export type RouteDataAccessType = {
     studentDBManager: StudentDBManager,
     authenticationManager: AuthenticationManager,
     recruitmentDBManager: RecruitmentDBManager,

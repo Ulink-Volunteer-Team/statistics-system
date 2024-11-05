@@ -5,6 +5,7 @@ dist
 docs 
 
 .vscode/settings.json
+config.yml
 
 .DS_Store
 *.db
