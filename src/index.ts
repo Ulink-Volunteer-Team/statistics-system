@@ -4,6 +4,7 @@ import bodyParser from 'body-parser';
 import rateLimit from "express-rate-limit";
 import { IpFilter } from "express-ipfilter"
 import z from "zod";
+import cors from "cors";
 import pino from "pino";
 import pinoHttp from "pino-http";
 import pinoPretty, { PinoPretty } from "pino-pretty";
@@ -69,7 +70,8 @@ async function main(config: z.infer<typeof configSchema>) {
         .use(bodyParser.json())
         .use(loggerHttp)
         .use(limiter)
-        .use(ipFilter);
+        .use(ipFilter)
+        .use(cors());
 
     const [studentDBManager, authenticationManager, recruitmentDBManager] = await Promise.all([
         new Promise<StudentDBManager>((resolve) => {

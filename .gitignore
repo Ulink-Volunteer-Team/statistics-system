@@ -10,3 +10,4 @@ config.yml
 .DS_Store
 *.db
 .VSCodeCounter
+server-info.sh

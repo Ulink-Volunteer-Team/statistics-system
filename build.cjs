@@ -2,6 +2,8 @@ const esbuild = require("esbuild");
 const { spawn } = require("child_process");
 const outFile = "dist/index.cjs";
 const ON_DEATH = require("death");
+const child_process = require("node:child_process");
+
 
 const options = {
 	entryPoints: ["src/index.ts"],
@@ -13,6 +15,9 @@ const options = {
 	sourcemap: process.argv[2] !== "prod",
 	minify: process.argv[2] === "prod",
 };
+
+// remove all the files except for the wasm
+child_process.execSync(`find "dist/" -type f ! -name "*wasm" -exec rm -v {} \\;`)
 
 esbuild
 	.build(options)

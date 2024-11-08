@@ -14,6 +14,9 @@ importers:
       body-parser:
         specifier: ^1.20.3
         version: 1.20.3
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
       death:
         specifier: ^1.1.0
         version: 1.1.0
@@ -51,6 +54,9 @@ importers:
       '@types/body-parser':
         specifier: ^1.19.5
         version: 1.19.5
+      '@types/cors':
+        specifier: ^2.8.17
+        version: 2.8.17
       '@types/death':
         specifier: ^1.1.5
         version: 1.1.5
@@ -307,6 +313,9 @@ packages:
   '@types/connect@3.4.38':
     resolution: {integrity: sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug==}
 
+  '@types/cors@2.8.17':
+    resolution: {integrity: sha512-8CGDvrBj1zgo2qE+oS3pOCyYNqCPryMWY2bGfwA0dcfopWGgxs+78df0Rs3rc9THP4JkOhLsAa+15VdpAqkcUA==}
+
   '@types/death@1.1.5':
     resolution: {integrity: sha512-r9LUPz2hMUZZyViBRbOTU1NV0a92xB23aeC/gXRWTIBOuhX/MtmeYPVBQ7Je86jVYt5trKEr2sfeFGyWU+ijPA==}
 
@@ -538,6 +547,10 @@ packages:
   cookie@0.7.1:
     resolution: {integrity: sha512-6DnInpx7SJ2AK3+CTUE/ZM0vWTUboZCegxhC2xiIydHR9jNuTAASBrfEpHhiGOZw/nX51bHt6YQl8jsGo4y/0w==}
     engines: {node: '>= 0.6'}
+
+  cors@2.8.5:
+    resolution: {integrity: sha512-KIHbLJqu73RGr/hnbrO9uBeixNGuvSQjul/jdFvS/KFSIH1hWVd1ng7zOHx+YrEfInLG7q4n6GHQ9cDtxv/P6g==}
+    engines: {node: '>= 0.10'}
 
   cross-spawn@7.0.3:
     resolution: {integrity: sha512-iRDPJKUPVEND7dHPO8rkbOnPpyDygcDFtWjpeWNCgy8WP2rXcxXL8TskReQl6OrB2G7+UJrags1q15Fudc7G6w==}
@@ -1030,6 +1043,10 @@ packages:
 
   node-sqlite3-wasm@0.8.25:
     resolution: {integrity: sha512-iqaFwW0aokbAWPJyy81xTm4vbQMUgWmGbcxVnn7xLOd5QZagtf5YIOHbXPpZv4AlC2yYw7cl0sM31Gmun8ojJA==}
+
+  object-assign@4.1.1:
+    resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
+    engines: {node: '>=0.10.0'}
 
   object-inspect@1.13.2:
     resolution: {integrity: sha512-IRZSRuzJiynemAXPYtPe5BoI/RESNYR7TYm50MC5Mqbd3Jmw5y790sErYw3V6SryFJD64b74qQQs9wn5Bg/k3g==}
@@ -1555,6 +1572,10 @@ snapshots:
     dependencies:
       '@types/node': 22.8.7
 
+  '@types/cors@2.8.17':
+    dependencies:
+      '@types/node': 22.8.7
+
   '@types/death@1.1.5': {}
 
   '@types/express-serve-static-core@5.0.1':
@@ -1816,6 +1837,11 @@ snapshots:
   cookie-signature@1.0.6: {}
 
   cookie@0.7.1: {}
+
+  cors@2.8.5:
+    dependencies:
+      object-assign: 4.1.1
+      vary: 1.1.2
 
   cross-spawn@7.0.3:
     dependencies:
@@ -2370,6 +2396,8 @@ snapshots:
   negotiator@0.6.3: {}
 
   node-sqlite3-wasm@0.8.25: {}
+
+  object-assign@4.1.1: {}
 
   object-inspect@1.13.2: {}
 
