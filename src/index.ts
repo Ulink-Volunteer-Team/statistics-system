@@ -111,11 +111,15 @@ async function main(config: z.infer<typeof configSchema>) {
 
 new ConfigProvider(configSchema).getConfig("config.yml")
     .then(main)
-    .catch((err: z.ZodError) => {
-        logger.error(
-            "Fail to get all the fields for the config\n" +
-            err.issues.map(issue => {
-                return `  ${issue.path.join(".")}: ${issue.message}`;
-            }).join("\n")
-        );
+    .catch((err: z.ZodError | string) => {
+        if(typeof err == "string") {
+            logger.error(err);
+        }else {
+            logger.error(
+                "Fail to get all the fields for the config\n" +
+                err.issues.map(issue => {
+                    return `  ${issue.path.join(".")}: ${issue.message}`;
+                }).join("\n")
+            );
+        }
     });

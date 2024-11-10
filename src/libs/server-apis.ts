@@ -125,20 +125,21 @@ export const serverRoutes: Record<string, ServerRouteType> = {
 
         if (!userPublicKey) {
             const msg = "Missing user's public key";
-            req.log.warn({ handled: true, msg, ip });
-            res.status(401).json({
-                success: false,
-                msg
-            });
+            rejectRequest(msg, req, res);
         }
 
-        const { data, id } = handshake(sessionManager, userPublicKey, ip || "");
-        res.status(200).json({
-            success: true,
-            api_version: API_VERSION,
-            data
-        });
-        req.log.info({ handled: true, msg: "Handshake success", ip, sessionId: id });
+        try {
+            const { data, id } = handshake(sessionManager, userPublicKey, ip || "");
+            res.status(200).json({
+                success: true,
+                api_version: API_VERSION,
+                data
+            });
+            req.log.info({ handled: true, msg: "Handshake success", ip, sessionId: id });
+        }
+        catch (e) {
+            rejectRequest(String(e), req, res);
+        }
     },
 
     "sign-in": async (req, res, sessionManager, dataSource) => {

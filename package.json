@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "build": "node ./build.cjs",
-    "release": "node ./build.cjs prod",
+    "build": "node esbuild.config.cjs",
+    "release": "node esbuild.config.cjs prod",
     "docs": "npx typedoc ./src"
   },
   "private": true,
