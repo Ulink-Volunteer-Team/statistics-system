@@ -9,10 +9,11 @@ type UserAccountType = {
 }
 
 const SECRET_KEY = String(process.env.SIGN_KEY);
+const SALT_ROUNDS = Number(process.env.SALT_ROUNDS || "12");
 
 export class AuthenticationManager {
     db: DatabaseWrapper;
-    private static SALT_ROUNDS = 12;
+    private static SALT_ROUNDS = SALT_ROUNDS;
     readonly tableName = "authentication";
 
     /**

@@ -26,18 +26,8 @@ export class StudentDBManager {
                 notNull: true
             },
         }).then(() => {
-            if(initCallback) initCallback();
+            if (initCallback) initCallback();
         });
-    }
-
-    /**
-     * Adds a new student with the given information to the database.
-     * @param student An object with the student's information: id and name.
-     * @returns The row ID of the newly inserted student.
-     */
-    async addStudent(student: StudentType): Promise<RunResult> {
-        if (await this.haveStudentID(student.id)) return Promise.reject(`Student with id "${student.id}" already exists`);
-        else return this.db.insert(this.tableName, [student]);
     }
 
     /**
@@ -46,52 +36,68 @@ export class StudentDBManager {
      * @returns The result of the database insertion operation.
      * @throws An error if any of the students already exist in the database.
      */
-    async addStudentsBulk(students: StudentType[]): Promise<RunResult> {
+    async addStudents(students: StudentType[]): Promise<RunResult> {
+        const warnings: string[] = [];
+        const promises: Promise<RunResult>[] = [];
         for (const student of students) {
-            if(await this.haveStudentID(student.id)) return Promise.reject(`Student with id "${student.id}" already exists`);
+            if (await this.haveStudentWithID(student.id)) warnings.push(`Student with id "${student.id}" already exists`);
+            else promises.push(this.db.insert(this.tableName, [student]));
         }
-        return this.db.insert(this.tableName, students);
+        
+        const results = await Promise.all(promises);
+        if(warnings.length > 0) return Promise.reject(warnings.join("\n"));
+        return {
+            changes: results.reduce((acc, r) => acc + r.changes, 0),
+            lastInsertRowid: results[results.length - 1].lastInsertRowid
+        };
     }
 
     /**
      * Removes a student from the database by their ID.
-     * @param id The ID of the student to remove.
+     * @param ids The IDs of the students to remove.
      */
-    removeStudent(id: string): Promise<RunResult> {
-        if (!this.haveStudentID(id)) return Promise.reject(`Student with id ${id} not found`);
-        return this.db.delete(this.tableName, [{
-            key: "id",
-            operator: "=",
-            compared: id,
-            logicalOperator: "AND"
-        }]);
+    async removeStudents(ids: string[]): Promise<RunResult> {
+        const promises: Promise<RunResult>[] = [];
+        const warnings: string[] = [];
+        for (const id of ids) {
+            if (!(await this.haveStudentWithID(id))) warnings.push(`Student with id ${id} not found`);
+            else promises.push(this.db.delete(this.tableName, [{
+                key: "id",
+                operator: "=",
+                compared: id,
+                logicalOperator: "AND"
+            }]));
+        }
+        const results = await Promise.all(promises);
+        if(warnings.length > 0) return Promise.reject(warnings.join("\n"));
+        return {
+            changes: results.reduce((acc, r) => acc + r.changes, 0),
+            lastInsertRowid: results[results.length - 1].lastInsertRowid
+        };
     }
 
     /**
-     * Updates the name of a student with the given ID.
-     * @param id The ID of the student to update.
-     * @param name The new name of the student.
+     * Updates the names of multiple students in a single operation.
+     * @param students An object with student IDs as keys and the new names as values.
      * @returns The number of rows changed.
      */
-    updateStudent(id: string, name: string): Promise<RunResult> {
-        return this.db.update(this.tableName, {
-            name
-        }, [{
-            key: "id",
-            operator: "=",
-            compared: id,
-            logicalOperator: "AND"
-        }]);
-    }
-
-    /**
-     * Retrieves a list of students from the database.
-     * @param num The maximum number of students to retrieve.
-     * @param offset The number of students to skip before starting to collect the result set.
-     * @returns A promise that resolves to an array of students.
-     */
-    getStudents(num: number, offset: number): Promise<StudentType[]> {
-        return this.db.select<StudentType>(this.tableName, ["name", "id"], [], num, offset);
+    async updateStudents(students: StudentType[]): Promise<RunResult> {
+        const promises: Promise<RunResult>[] = [];
+        const warnings: string[] = [];
+        for (const student of students) {
+            if (!(await this.haveStudentWithID(student.id))) warnings.push(`Student with id "${student.id}" does not exist`);
+            else promises.push(this.db.update(this.tableName, student, [{
+                key: "id",
+                operator: "=",
+                compared: student.id,
+                logicalOperator: "AND"
+            }]));
+        }
+        const results = await Promise.all(promises);
+        return ({
+            changes: results.reduce((acc, r) => acc + r.changes, 0),
+            lastInsertRowid: results[results.length - 1].lastInsertRowid
+        });
     }
 
     /**
@@ -99,8 +105,8 @@ export class StudentDBManager {
      * @param id The ID of the student to check.
      * @returns Whether a student with the given ID exists.
      */
-    async haveStudentID(id: string): Promise<boolean> {
-        const result = await this.db.select<StudentType>(this.tableName, ["name", "id"],[{
+    async haveStudentWithID(id: string): Promise<boolean> {
+        const result = await this.db.select<StudentType>(this.tableName, ["name", "id"], [{
             key: "id",
             operator: "=",
             compared: id,
@@ -114,7 +120,7 @@ export class StudentDBManager {
      * @param id The ID of the student to find.
      * @returns The student if found, otherwise undefined.
      */
-    async findById(id: string): Promise<StudentType | undefined> {
+    async getStudentByID(id: string): Promise<StudentType | undefined> {
         const result = await this.db.select<StudentType>(this.tableName, ["name"], [{
             key: "id",
             operator: "=",
@@ -129,7 +135,7 @@ export class StudentDBManager {
      * @param name The pattern to search for in student names.
      * @returns An array of students with names matching the pattern.
      */
-    fuzzySearchStudent(name: string): Promise<StudentType[]> {
+    getStudentByFuzzySearch(name: string): Promise<StudentType[]> {
         return this.db.select<StudentType>(this.tableName, ["id", "name"], [{
             key: "name",
             operator: "LIKE",

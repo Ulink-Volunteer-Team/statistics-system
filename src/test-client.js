@@ -4,7 +4,8 @@ import { Buffer, btoa } from "node:buffer";
 import console from "console";
 
 // Set the base URL for the API
-const baseUrl = '83.229.127.91';
+const baseUrl = 'localhost';
+//const baseUrl = '83.229.127.91';
 const port = 3000;
 
 // Generate a public-private key pair
@@ -124,49 +125,25 @@ console.log(`Login ${loginState.success ? "successful" : "failed"}\n`);
 const token = JSON.parse(decryptAes256(loginState.data, key)).token;
 console.log(`Token: ${token}\n`);
 
-const addStudentState = await post("/add-student", {
+const addStudentBulkState = await post("/add-students", {
     session: id,
     data: encryptAes256(JSON.stringify({
         token: token,
-        student: {
-            name: "test",
-            id: "test-student@example.com"
-        }
-    }), key)
-});
-console.log(`Add student ${addStudentState.success ? "successful" : "failed"}\n`);
-
-const addStudentBulkState = await post("/add-student-bulk", {
-    session: id,
-    data: encryptAes256(JSON.stringify({
-        token: token,
-        students: new Array(1000).fill(0).map((_, i) => (
+        students: new Array(100).fill(0).map((_, i) => (
             {
                 name: "test" + i+100,
-                id: `test-student${i+100}@example.com`
+                id: `test-student${i+10}@example.com`
             }
         ))
     }), key)
 });
 console.log(`Add student bulk ${addStudentBulkState.success ? "successful" : "failed"}\n`);
 
-const getStudentBulkState = await post("/get-students", {
+const fuzzySearchStudentState = await post("/get-students-by-fuzzy-search", {
     session: id,
     data: encryptAes256(JSON.stringify({
         token: token,
-        limit: 5,
-        offset: 0
-    }), key)
-});
-console.log(getStudentBulkState)
-console.log(`Get student bulk ${getStudentBulkState.success ? "successful" : "failed"}`);
-if(getStudentBulkState.success) console.log(`Student bulk: \n${JSON.parse(decryptAes256(getStudentBulkState.data, key)).students.map((s) => (s.name + " - " + s.id)).join("\n")}`);
-
-const fuzzySearchStudentState = await post("/fuzzy-search-student", {
-    session: id,
-    data: encryptAes256(JSON.stringify({
-        token: token,
-        queryName: "test122"
+        name: "test122"
     }), key)
 });
 console.log(fuzzySearchStudentState)

@@ -2,6 +2,8 @@ import DatabaseWrapper from "../utils/sqlite-wrapper";
 import StudentDBManager from "./student-db-manager";
 import RecruitmentDBManager from "./recruitment-db-manager";
 
+import { RunResult } from "node-sqlite3-wasm";
+
 export class EventDBManager {
     db: DatabaseWrapper;
     studentDB: StudentDBManager;
@@ -35,14 +37,25 @@ export class EventDBManager {
      * @returns The result of the database insertion operation.
      * @throws An error if the student or event does not exist in the database.
      */
-    async addRecord(studentID: string, eventID: string) {
-        const haveStudent = await this.studentDB.haveStudentID(studentID);
-        const haveEvent = await this.recruitmentDB.haveRecruitment(eventID);
-        if(!haveStudent) return Promise.reject(`Student with id "${studentID}" does not exist`);
-        if(!haveEvent) return Promise.reject(`Event with id "${eventID}" does not exist`);
-        return await this.db.insert(this.tableName, [{ StudentID: studentID, EventID: eventID }]);
+    async addRecords(records: { studentID: string, eventID: string }[]) {
+        const promises: Promise<RunResult>[] = [];
+        const warnings: string[] = [];
+        for (const { studentID, eventID } of records) {
+            const haveStudent = await this.studentDB.haveStudentWithID(studentID);
+            const haveEvent = await this.recruitmentDB.haveRecruitmentWithID(eventID);
+            if (!haveStudent) warnings.push(`Student with id "${studentID}" does not exist`);
+            if (!haveEvent) warnings.push(`Event with id "${eventID}" does not exist`);
+            promises.push(this.db.insert(this.tableName, [{ StudentID: studentID, EventID: eventID }]));
+        }
+        const results = await Promise.all(promises);
+        if (warnings.length > 0) return Promise.reject(warnings.join("\n"));
+        return {
+            changes: results.reduce((acc, r) => acc + r.changes, 0),
+            lastInsertRowid: results[results.length - 1].lastInsertRowid
+        };
+
     }
-    
+
 
     /**
      * Retrieves a list of student IDs of students volunteering for the given event.
@@ -50,9 +63,9 @@ export class EventDBManager {
      * @returns A promise that resolves to an array of student IDs.
      * @throws An error if the event does not exist in the database.
      */
-    async getStudentIDsByEventID(eventID: string) {
-        if(!(await this.recruitmentDB.haveRecruitment(eventID))) return Promise.reject(`Event with id "${eventID}" does not exist`);
-        return (await this.db.select<{StudentID: string}>(this.tableName, ["StudentID"], [{
+    async getStudentIDsByRecruitmentID(eventID: string) {
+        if (!(await this.recruitmentDB.haveRecruitmentWithID(eventID))) return Promise.reject(`Event with id "${eventID}" does not exist`);
+        return (await this.db.select<{ StudentID: string }>(this.tableName, ["StudentID"], [{
             key: "EventID",
             operator: "=",
             compared: eventID,
@@ -66,9 +79,9 @@ export class EventDBManager {
      * @returns A promise that resolves to an array of event IDs.
      * @throws An error if the student does not exist in the database.
      */
-    async getEventIDsByStudentID(studentID: string) {
-        if(!(await this.studentDB.haveStudentID(studentID))) return Promise.reject(`Student with id "${studentID}" does not exist in database`);
-        return (await this.db.select<{EventID: string}>(this.tableName, ["EventID"], [{
+    async getRecruitmentIDsByStudentID(studentID: string) {
+        if (!(await this.studentDB.haveStudentWithID(studentID))) return Promise.reject(`Student with id "${studentID}" does not exist in database`);
+        return (await this.db.select<{ EventID: string }>(this.tableName, ["EventID"], [{
             key: "StudentID",
             operator: "=",
             compared: studentID,
@@ -83,15 +96,70 @@ export class EventDBManager {
      * @returns A promise that resolves to the total number of volunteer hours.
      */
     async calculateVolunteerHour(studentID: string, beginTime = 0): Promise<number> {
-        const events = (await this.getEventIDsByStudentID(studentID));
+        const events = (await this.getRecruitmentIDsByStudentID(studentID));
 
         let total = 0;
-        for(const eventID of events){
-            const event = await this.recruitmentDB.getRecruitment(eventID);
-            if(event.eventTime > beginTime) total += event.volunteerHours; 
+        for (const eventID of events) {
+            const event = await this.recruitmentDB.getRecruitmentByID(eventID);
+            if (event.eventTime > beginTime) total += event.volunteerHours;
         }
 
         return total;
+    }
+
+    async deleteRecordsByStudentID(studentID: string) {
+        if(!(await this.studentDB.haveStudentWithID(studentID))) return Promise.reject(`Student with id "${studentID}" does not exist`);
+        return this.db.delete(this.tableName, [
+            {
+                key: "StudentID",
+                operator: "=",
+                compared: studentID,
+                logicalOperator: "AND"
+            }
+        ]);
+    }
+
+    async deleteRecordsByEventID(eventID: string) {
+        if(!(await this.recruitmentDB.haveRecruitmentWithID(eventID))) return Promise.reject(`Event with id "${eventID}" does not exist`);
+        return this.db.delete(this.tableName, [
+            {
+                key: "EventID",
+                operator: "=",
+                compared: eventID,
+                logicalOperator: "AND"
+            }
+        ]);
+    }
+
+    async deleteRecords(records: { studentID: string, eventID: string }[]) {
+        const promises: Promise<RunResult>[] = [];
+        const warnings: string[] = [];
+        for (const { studentID, eventID } of records) {
+            const haveStudent = await this.studentDB.haveStudentWithID(studentID);
+            const haveEvent = await this.recruitmentDB.haveRecruitmentWithID(eventID);
+            if (!haveStudent) warnings.push(`Student with id "${studentID}" does not exist`);
+            if (!haveEvent) warnings.push(`Event with id "${eventID}" does not exist`);
+            promises.push(this.db.delete(this.tableName, [
+                {
+                    key: "StudentID",
+                    operator: "=",
+                    compared: studentID,
+                    logicalOperator: "AND"
+                },
+                {
+                    key: "EventID",
+                    operator: "=",
+                    compared: eventID,
+                    logicalOperator: "AND"
+                }
+            ]));
+        }
+        const runResults = await Promise.all(promises);
+        if (warnings.length > 0) return Promise.reject(warnings.join("\n"));
+        return {
+            changes: runResults.reduce((acc, r) => acc + r.changes, 0),
+            lastInsertRowid: runResults[runResults.length - 1].lastInsertRowid,
+        };
     }
 }
 

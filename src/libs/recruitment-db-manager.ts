@@ -1,4 +1,5 @@
 import DatabaseWrapper from "../utils/sqlite-wrapper";
+import { RunResult } from "node-sqlite3-wasm";
 import { v4 as uuidV4 } from "uuid";
 
 export type RecruitmentDataType = {
@@ -56,12 +57,12 @@ export class RecruitmentDBManager {
     }
 
     /**
-     * Adds a new recruitment to the database.
-     * @param recruitment A partial RecruitmentDataType object to be inserted. The id field is automatically generated.
+     * Adds new recruitments to the database.
+     * @param recruitments An array of partial RecruitmentDataType objects to be inserted. The id field is automatically generated.
      * @returns The result of the insert command.
      */
-    async addRecruitment(recruitment: Partial<RecruitmentDataType>) {
-        return await this.db.insert("recruitment", [{
+    async addRecruitments(recruitments: Partial<RecruitmentDataType>[]) {
+        return await this.db.insert("recruitment", recruitments.map(recruitment => ({
             id: uuidV4(),
             department: "",
             formFilledBy: "",
@@ -70,7 +71,7 @@ export class RecruitmentDBManager {
             volunteerHours: 0,
             additionalNotes: "",
             ...recruitment,
-        }]);
+        })));
     }
 
     /**
@@ -78,7 +79,7 @@ export class RecruitmentDBManager {
      * @param id The id of the recruitment.
      * @returns The recruitment with the given id, or undefined if it does not exist.
      */
-    async getRecruitment(id: string) {
+    async getRecruitmentByID(id: string) {
         return (await this.db.select<RecruitmentDataType>("recruitment", ["*"], [{
             key: "id",
             operator: "=",
@@ -92,7 +93,7 @@ export class RecruitmentDBManager {
      * @param id The id to check
      * @returns Whether a recruitment with the given id exists
      */
-    async haveRecruitment(id: string) {
+    async haveRecruitmentWithID(id: string) {
         return (await this.db.select<RecruitmentDataType>("recruitment", ["id"], [{
             key: "id",
             operator: "=",
@@ -102,25 +103,37 @@ export class RecruitmentDBManager {
     }
 
     /**
-     * Updates the recruitment data for a given id.
+     * Updates the recruitment data for multiple records.
      * 
-     * @param id The id of the recruitment to update.
-     * @param recruitment A partial RecruitmentDataType object containing the fields to update.
-     * @returns The result of the update command.
-     * @throws If the recruitment with the given id does not exist.
+     * @param records An array of partial RecruitmentDataType objects containing the fields to update.
+     * @returns A single RunResult object representing the result of the update command.
+     * @throws If any of the recruitments with the given id do not exist.
      */
-    async updateRecruitment(id: string, recruitment: Partial<RecruitmentDataType>) {
-        if(!await this.haveRecruitment(id)) return Promise.reject(`Recruitment with id "${id}" does not exist`);
-        const newRecruitment = {
-            ...(await this.getRecruitment(id)),
-            ...recruitment
+    async updateRecruitments(records: Partial<RecruitmentDataType>[]): Promise<RunResult> {
+        const promises: Promise<RunResult>[] = [];
+        const warnings: string[] = [];
+        for (const record of records) {
+            if (!record.id) warnings.push(`Missing id in record ${JSON.stringify(record)}`);
+            else if (!await this.haveRecruitmentWithID(record.id)) warnings.push(`Recruitment with id "${record.id}" does not exist`);
+            else {
+                const newRecruitment = {
+                    ...(await this.getRecruitmentByID(record.id)),
+                    ...record
+                };
+                promises.push(this.db.update("recruitment", newRecruitment, [{
+                    key: "id",
+                    operator: "=",
+                    compared: record.id,
+                    logicalOperator: "AND"
+                }]));
+            }
+        }
+        const results = await Promise.all(promises);
+        if (warnings.length > 0) return Promise.reject(warnings.join("\n"));
+        return {
+            changes: results.reduce((acc, r) => acc + r.changes, 0),
+            lastInsertRowid: results[results.length - 1].lastInsertRowid,
         };
-        return await this.db.update("recruitment", newRecruitment, [{
-            key: "id",
-            operator: "=",
-            compared: id,
-            logicalOperator: "AND"
-        }]);
     }
 
     /**
@@ -131,7 +144,7 @@ export class RecruitmentDBManager {
      * @param search The search strings to match.
      * @returns An array of RecruitmentDataType objects that match the search criteria.
      */
-    async fuzzySearch(fields: ("department" | "formFilledBy" | "eventName")[], search: string[]) {
+    async getRecruitmentsByFuzzySearch(fields: ("department" | "formFilledBy" | "eventName")[], search: string[]) {
         return await this.db.select<RecruitmentDataType>("recruitment", ["*"], fields.map((_, i) => ({
             key: fields[i],
             operator: "LIKE",
@@ -141,28 +154,29 @@ export class RecruitmentDBManager {
     }
 
     /**
-     * Deletes a recruitment from the database.
-     * @param id The id of the recruitment to delete.
+     * Deletes recruitments from the database by their IDs.
+     * @param ids The IDs of the recruitments to delete.
      * @returns The result of the delete command.
-     * @throws If the recruitment with the given id does not exist.
+     * @throws If any recruitment with the given id does not exist.
      */
-    removeRecruitment(id: string) {
-        return this.db.delete("recruitment", [{
-            key: "id",
-            operator: "=",
-            compared: id,
-            logicalOperator: "AND"
-        }]);
-    }
-
-    async getVolunteerHour(id: string): Promise<number> {
-        if(!(await this.haveRecruitment(id))) return Promise.reject(`Event (Recruitment) with id "${id}" does not exist in database`);
-        return (await this.db.select<RecruitmentDataType>("recruitment", ["id"], [{
-            key: "id",
-            operator: "=",
-            compared: id,
-            logicalOperator: "AND"
-        }]))[0].volunteerHours
+    async removeRecruitments(ids: string[]): Promise<RunResult> {
+        const promises: Promise<RunResult>[] = [];
+        const warnings: string[] = []
+        for (const id of ids) {
+            if (!(await this.haveRecruitmentWithID(id))) warnings.push(`Recruitment with id "${id}" does not exist`);
+            else promises.push(this.db.delete("recruitment", [{
+                key: "id",
+                operator: "=",
+                compared: id,
+                logicalOperator: "AND"
+            }]));
+        }
+        const results = await Promise.all(promises);
+        if (warnings.length > 0) return Promise.reject(warnings.join("\n"));
+        return {
+            changes: results.reduce((acc, r) => acc + r.changes, 0),
+            lastInsertRowid: results[results.length - 1].lastInsertRowid,
+        };
     }
 }
 

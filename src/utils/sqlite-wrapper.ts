@@ -83,8 +83,8 @@ export class DatabaseWrapper {
             this.logger.info(`DatabaseWrapper: Prepared database at ${this.dbPath}`);
             this.enableForeignKeys(); // Enable foreign key support
         } catch (error) {
-            this.logger.error(`DatabaseWrapper: Failed to prepare database: ${(error as SQLite3Error).message}`);
-            throw new Error(`Failed to prepare database: ${(error as SQLite3Error).message}`);
+            this.logger.error(`DatabaseWrapper: Failed to prepare database: ${(error as SQLite3Error).message || error}`);
+            throw new Error(`Failed to prepare database: ${(error as SQLite3Error).message || error}`);
         }
 
         this.deathEvent.addJob(this.close.bind(this), `Close DB '${dbName}'`);
@@ -120,8 +120,8 @@ export class DatabaseWrapper {
 
             try { this.db.run(command); }
             catch (error) {
-                this.logger.error(`DatabaseWrapper: Failed to prepare table due to: ${(error as SQLite3Error).message}`);
-                reject(`Failed to prepare table due to: ${(error as SQLite3Error).message}`);
+                this.logger.error(`DatabaseWrapper: Failed to prepare table due to: ${(error as SQLite3Error).message || error}`);
+                reject(`Failed to prepare table due to: ${(error as SQLite3Error).message || error}`);
             }
             this.tables[tableName] = frame; // Store table schema for later use
             this.logger.info(`DatabaseWrapper: Table "${tableName}" ready`);
@@ -145,8 +145,8 @@ export class DatabaseWrapper {
                 this.logger.info(`DatabaseWrapper: Table "${tableName}" deleted`);
                 resolve();
             } catch (error) {
-                this.logger.error(`DatabaseWrapper: Failed to delete table: ${(error as SQLite3Error).message}`);
-                reject(`Failed to delete table: ${(error as SQLite3Error).message}`);
+                this.logger.error(`DatabaseWrapper: Failed to delete table: ${(error as SQLite3Error).message || error}`);
+                reject(`Failed to delete table: ${(error as SQLite3Error).message || error}`);
             }
         });
     }
@@ -184,8 +184,8 @@ export class DatabaseWrapper {
                 // statement.finalize(); // must be added to prevent memory leak
                 resolve(result);
             } catch (error) {
-                this.logger.error(`DatabaseWrapper: Failed to run query: ${(error as SQLite3Error).message}`);
-                reject(`SQL error: ${(error as SQLite3Error).message}`);
+                this.logger.error(`DatabaseWrapper: Failed to run query: ${(error as SQLite3Error).message || error}`);
+                reject(`SQL error: ${(error as SQLite3Error).message || error}`);
             }
         });
     }
@@ -204,8 +204,8 @@ export class DatabaseWrapper {
                 //statement.finalize(); // must be added to prevent memory leak
                 resolve(result as T[]);
             } catch (error) {
-                this.logger.error(`DatabaseWrapper: Failed to run query: ${(error as SQLite3Error).message}`);
-                reject(`SQL error: ${(error as SQLite3Error).message}`);
+                this.logger.error(`DatabaseWrapper: Failed to run query: ${(error as SQLite3Error).message || error}`);
+                reject(`SQL error: ${(error as SQLite3Error).message || error}`);
             }
         })
     }
@@ -253,7 +253,7 @@ export class DatabaseWrapper {
             this.runQuery<T>(queryStr, param)
                 .then(result => resolve(result))
                 .catch(error => {
-                    const msg = `Failed to fetch filtered data from ${tableName}: ${(error as SQLite3Error).message}`;
+                    const msg = `Failed to fetch filtered data from ${tableName}: ${(error as SQLite3Error).message || error}`;
                     this.logger.error("DatabaseWrapper: " + msg);
                     reject(msg);
                 });
@@ -284,7 +284,7 @@ export class DatabaseWrapper {
             this.runCommand(queryStr + valuesStr, dataFrame.map(item => Object.values(item)).flat())
                 .then(result => resolve(result))
                 .catch(error => {
-                    const msg = `Database error in table "${tableName}": ${(error as SQLite3Error).message}`;
+                    const msg = `Database error in table "${tableName}": ${(error as SQLite3Error).message || error}`;
                     this.logger.error("DatabaseWrapper: " + msg);
                     reject(msg);
                 });
@@ -314,7 +314,7 @@ export class DatabaseWrapper {
             this.runCommand(queryStr, values.concat(conditions.map(c => c.compared)))
                 .then(result => resolve(result))
                 .catch(error => {
-                    const msg = `Failed to update data in ${tableName}: ${(error as SQLite3Error).message}`;
+                    const msg = `Failed to update data in ${tableName}: ${(error as SQLite3Error).message || error}`;
                     this.logger.error("DatabaseWrapper: " + msg);
                     reject(msg);
                 });
@@ -339,7 +339,7 @@ export class DatabaseWrapper {
             this.runCommand(queryStr, conditions.map(c => c.compared))
                 .then(result => resolve(result))
                 .catch(error => {
-                    const msg = `Failed to delete data from ${tableName}: ${(error as SQLite3Error).message}`;
+                    const msg = `Failed to delete data from ${tableName}: ${(error as SQLite3Error).message || error}`;
                     this.logger.error("DatabaseWrapper: " + msg);
                     reject(msg);
                 });

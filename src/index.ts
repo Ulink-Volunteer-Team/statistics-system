@@ -9,7 +9,7 @@ import pino from "pino";
 import pinoHttp from "pino-http";
 import pinoPretty, { PinoPretty } from "pino-pretty";
 
-import serverRoutes from './libs/server-apis';
+import serverRoutes from '@/api/index';
 import SessionManger from './libs/session-manager';
 import AuthenticationManager from './libs/authentication-manager';
 import StudentDBManager from './libs/student-db-manager';
@@ -39,6 +39,15 @@ const configSchema = z.object({
     IP_MAX_PER_MIN: z.number(),
     BANNED_IP: z.array(z.string()),
 });
+
+const defaultConfigs : z.infer<typeof configSchema> = {
+    DB_NAME: "database",
+    DB_DIR: "./",
+
+    SERVER_PORT: 3000,
+    IP_MAX_PER_MIN: 100,
+    BANNED_IP: []
+}
 
 const pinoPrettyInst = pinoPretty(pinoPrettyConfig);
 const loggerHttp = pinoHttp(pinoHttpConfig, pinoPrettyInst)
@@ -86,10 +95,10 @@ async function main(config: z.infer<typeof configSchema>) {
     ]);
 
     const eventsDBManager = new EventDBManager(db, studentDBManager, recruitmentDBManager);
-    Object.entries(serverRoutes).forEach(([apiName, route]) => {
-        app.post(`/${apiName}`, (req, res) => {
+    serverRoutes.forEach(({ name, handler }) => {
+        app.post(`/${name}`, (req, res) => {
             const url = req.originalUrl.split("/").pop();
-            route(req, res, sessionManager, {
+            handler(req, res, sessionManager, {
                 studentDBManager,
                 authenticationManager,
                 recruitmentDBManager,
@@ -102,6 +111,7 @@ async function main(config: z.infer<typeof configSchema>) {
                     req.log.info({ msg: "Request handled", requestedApi: url });
                 })
         });
+        logger.info(`Route "${name}" is ready`);
     });
 
     app.listen(port, '0.0.0.0', () => {
@@ -109,7 +119,7 @@ async function main(config: z.infer<typeof configSchema>) {
     });
 }
 
-new ConfigProvider(configSchema).getConfig("config.yml")
+new ConfigProvider(configSchema, defaultConfigs).getConfig("config.yml")
     .then(main)
     .catch((err: z.ZodError | string) => {
         if(typeof err == "string") {
