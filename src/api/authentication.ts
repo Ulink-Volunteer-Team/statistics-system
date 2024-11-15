@@ -43,7 +43,21 @@ export const signOut = APIHandlerConstructor(
     })
 );
 
+export const getTokenState = APIHandlerConstructor(
+    "get-token-state",
+    z.object({
+        tokenToCheck: z.string(),
+        userID: z.string(),
+    }),
+    (async ({ userID, tokenToCheck }, dataSource, sessionID, sessionUserIDMap) => {
+        const valid = dataSource.authenticationManager.verifyToken(userID, tokenToCheck);
+        if(valid) sessionUserIDMap.set(sessionID, userID);
+        return { valid };
+    })
+)
+
 export default [
+    getTokenState,
     signIn,
     signUp,
     signOut

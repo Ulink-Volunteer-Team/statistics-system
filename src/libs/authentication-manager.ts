@@ -8,12 +8,17 @@ type UserAccountType = {
     permissions: string;
 }
 
-const SECRET_KEY = String(process.env.SIGN_KEY);
-const SALT_ROUNDS = Number(process.env.SALT_ROUNDS || "12");
+type AuthenticationManagerConfig = {
+    secretKey: string;
+    saltRounds: number;
+    expiresIn: string;
+}
 
 export class AuthenticationManager {
     db: DatabaseWrapper;
-    private static SALT_ROUNDS = SALT_ROUNDS;
+    private readonly saltRounds;
+    private readonly secretKey;
+    private readonly expiresIn;
     readonly tableName = "authentication";
 
     /**
@@ -21,8 +26,11 @@ export class AuthenticationManager {
      * @param db The DatabaseWrapper instance to be used for database operations.
      * @param initCallback A callback function to be called after the database table is ready.
      */
-    constructor(db: DatabaseWrapper, initCallback?: () => void) {
+    constructor(db: DatabaseWrapper, initCallback?: () => void, config: Partial<AuthenticationManagerConfig> = {}) {
         this.db = db;
+        this.secretKey = config.secretKey || "";
+        this.saltRounds = config.saltRounds || 12;
+        this.expiresIn = config.expiresIn || "1d";
         this.db.prepareTable(this.tableName, {
             id: {
                 type: "TEXT",
@@ -47,7 +55,7 @@ export class AuthenticationManager {
      * @returns Hashed password
      */
     async generateHash(password: string) {
-        return bcrypt.hash(password, AuthenticationManager.SALT_ROUNDS);
+        return bcrypt.hash(password, this.saltRounds);
     }
 
     /**
@@ -94,8 +102,8 @@ export class AuthenticationManager {
      * @param expiresIn The expiration time for the token (default 1 day)
      * @returns The generated token
      */
-    generateToken(payload: string, expiresIn = '1d'): string {
-        return jwt.sign({ id: payload }, SECRET_KEY, { expiresIn });
+    generateToken(payload: string): string {
+        return jwt.sign({ id: payload }, this.secretKey, { expiresIn:this.expiresIn });
     }
 
 
@@ -107,7 +115,7 @@ export class AuthenticationManager {
      */
     verifyToken(payload: string, token: string): boolean {
         try {
-            const tokenContent = jwt.verify(token, SECRET_KEY) as jwt.JwtPayload;
+            const tokenContent = jwt.verify(token, this.secretKey) as jwt.JwtPayload;
             return (payload === tokenContent.id && tokenContent.exp! > (Date.now() / 1000));
         }
         catch {
