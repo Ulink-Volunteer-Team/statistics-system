@@ -19,6 +19,12 @@ export const createIfNotExists = async (file: string): Promise<void> => {
     }
 }
 
+export const mkdirIfNotExists = async (dir: string): Promise<void> => {
+    fs.mkdir(dir, { recursive: true }).catch((error) => {
+        if(error.code !== "EEXIST") throw error;
+    });
+}
+
 export const getItems = async (dir: string): Promise<string[]> => {
     return fs.readdir(dir);
 }

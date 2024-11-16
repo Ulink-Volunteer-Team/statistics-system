@@ -19,6 +19,8 @@ import EventDBManager from './libs/event-db-manager';
 import DeathEvent from "./utils/death-event";
 import DatabaseWrapper from "./utils/sqlite-wrapper";
 
+import { StaticProvider } from './utils/static-provider';
+
 function initLogger() {
     const pinoHttpConfig = {
         autoLogging: false,
@@ -151,7 +153,8 @@ function main(config: ConfigType) {
                 .then(([studentDBManager, authenticationManager, recruitmentDBManager]) => {
                     const eventsDBManager = new EventDBManager(db, studentDBManager, recruitmentDBManager);
                     attachRoutes(app, sessionManager, studentDBManager, authenticationManager, recruitmentDBManager, eventsDBManager);
-                    app.listen(port, '0.0.0.0', () => {
+                    app.listen(port, '0.0.0.0', async () => {
+                        await (new StaticProvider(app, "./static", logger)).serve();
                         logger.info(`Server is running at port ${port}`);
                         resolve();
                     });

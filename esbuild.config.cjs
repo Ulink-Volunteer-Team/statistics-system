@@ -29,8 +29,7 @@ const options = {
 	minify: process.argv[2] === "prod",
 };
 
-// remove all the files except for the wasm
-child_process.execSync(`rm ./dist/*`)
+child_process.execSync(`rm -r ./dist/*`)
 
 esbuild
 	.build(options)

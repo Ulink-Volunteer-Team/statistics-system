@@ -11,3 +11,4 @@ config.yml
 *.db
 .VSCodeCounter
 server-info.sh
+/static
