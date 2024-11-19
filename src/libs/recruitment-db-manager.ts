@@ -80,12 +80,13 @@ export class RecruitmentDBManager {
      * @returns The recruitment with the given id, or undefined if it does not exist.
      */
     async getRecruitmentByID(id: string) {
-        return (await this.db.select<RecruitmentDataType>("recruitment", ["*"], [{
+        const searchResult = await this.db.select<RecruitmentDataType>("recruitment", ["*"], [{
             key: "id",
             operator: "=",
             compared: id,
             logicalOperator: "AND"
-        }]))[0];
+        }]);
+        return searchResult.length > 0 ? searchResult[0] : undefined;
     }
 
     /**

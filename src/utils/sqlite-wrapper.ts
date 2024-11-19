@@ -214,8 +214,8 @@ export class DatabaseWrapper {
         if (conditions.length === 0) return "";
         return ` WHERE ${conditions.map((condition, index) => {
             if (!checkSqlQueryIdentifierName(condition.key)) throw new Error(`Invalid characters in column name: ${condition.key}`);
-            return ` ${index >= 1 ? condition.logicalOperator : ""} ${condition.key} ${condition.operator} ?`;
-        }).join(" AND ")}`;
+            return ` ${index >= 1 ? condition.logicalOperator : ""} (${condition.key} ${condition.operator} ?)`;
+        }).join("")}`;
     }
 
     /**
@@ -249,6 +249,8 @@ export class DatabaseWrapper {
                 queryStr += ` OFFSET ?`;
                 param.push(offset);
             }
+
+            console.log(queryStr);
 
             this.runQuery<T>(queryStr, param)
                 .then(result => resolve(result))

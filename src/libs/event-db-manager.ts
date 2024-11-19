@@ -100,7 +100,7 @@ export class EventDBManager {
 
         let total = 0;
         for (const eventID of events) {
-            const event = await this.recruitmentDB.getRecruitmentByID(eventID);
+            const event = (await this.recruitmentDB.getRecruitmentByID(eventID))!;
             if (event.eventTime > beginTime) total += event.volunteerHours;
         }
 
