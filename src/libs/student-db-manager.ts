@@ -121,7 +121,7 @@ export class StudentDBManager {
      * @returns The student if found, otherwise undefined.
      */
     async getStudentByID(id: string): Promise<StudentType | undefined> {
-        const result = await this.db.select<StudentType>(this.tableName, ["name"], [{
+        const result = await this.db.select<StudentType>(this.tableName, ["id", "name"], [{
             key: "id",
             operator: "=",
             compared: id,
@@ -142,6 +142,10 @@ export class StudentDBManager {
             compared: `%${name}%`,
             logicalOperator: "AND"
         }]);
+    }
+
+    getAllStudents(): Promise<StudentType[]> {
+        return this.db.select<StudentType>(this.tableName, ["id", "name"]);
     }
 }
 

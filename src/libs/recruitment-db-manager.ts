@@ -67,7 +67,7 @@ export class RecruitmentDBManager {
             department: "",
             formFilledBy: "",
             eventName: "",
-            eventTime: Date.parse("1970-01-01"),
+            eventTime: 0,
             volunteerHours: 0,
             additionalNotes: "",
             ...recruitment,
@@ -156,6 +156,8 @@ export class RecruitmentDBManager {
 
     /**
      * Deletes recruitments from the database by their IDs.
+     * 
+     * **THE DATA RELATED IN THE EVENT TABLE SHOULD BE DELETED IN ADVANCE!**
      * @param ids The IDs of the recruitments to delete.
      * @returns The result of the delete command.
      * @throws If any recruitment with the given id does not exist.
@@ -178,6 +180,10 @@ export class RecruitmentDBManager {
             changes: results.reduce((acc, r) => acc + r.changes, 0),
             lastInsertRowid: results[results.length - 1].lastInsertRowid,
         };
+    }
+
+    async getAllRecruitmentInfo() {
+        return (await this.db.select<{id: string}>("recruitment", ["id", "eventName"]));
     }
 }
 

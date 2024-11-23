@@ -21,6 +21,8 @@ import DatabaseWrapper from "./utils/sqlite-wrapper";
 
 import { StaticProvider } from './utils/static-provider';
 
+const disableIpLimiter = true;
+
 function initLogger() {
     const pinoHttpConfig = {
         autoLogging: false,
@@ -114,12 +116,6 @@ function initManagers(db: DatabaseWrapper, config: ConfigType) {
 }
 
 function initExpress(config: ConfigType) {
-    const limiter = rateLimit({
-        windowMs: 60000,
-        limit: config.IP_MAX_PER_MIN,
-        message: 'Too many requests from this IP, please try again later.'
-    });
-
     const configBannedIPs = config.BANNED_IP;
     const bannedIPs = (Array.isArray(configBannedIPs) ? configBannedIPs : []) as string[];
     const ipFilter = IpFilter(bannedIPs, { mode: 'deny' });
@@ -128,9 +124,17 @@ function initExpress(config: ConfigType) {
     const app = express()
         .use(bodyParser.json())
         .use(loggerHttp)
-        .use(limiter)
         .use(ipFilter)
         .use(cors());
+
+    if(!disableIpLimiter){
+        const limiter = rateLimit({
+            windowMs: 60000,
+            limit: config.IP_MAX_PER_MIN,
+            message: 'Too many requests from this IP, please try again later.'
+        });
+        app.use(limiter);
+    }
     return app;
 }
 

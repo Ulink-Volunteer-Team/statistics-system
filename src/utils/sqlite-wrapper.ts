@@ -48,9 +48,10 @@ export type TableFrameDataType = {
 
 /** constrain the characters to prevent the injection attack */
 const checkSqlQueryIdentifierName = (characters: string) => {
-    const allowedChars = /^[a-zA-Z0-9_]+$/;
+    const allowedChars = /^[a-zA-Z0-9_\s]+$/;
     const singleStar = /\*$/;
-    return allowedChars.test(characters) || singleStar.test(characters);
+    const allowTuple = /^\([a-zA-Z0-9_,\s]+\)$/;
+    return allowedChars.test(characters) || singleStar.test(characters) || allowTuple.test(characters);
 }
 
 export class DatabaseWrapper {
@@ -97,6 +98,17 @@ export class DatabaseWrapper {
         } catch (error) {
             this.logger.error(`DatabaseWrapper: Failed to enable foreign keys: ${(error as SQLite3Error).message}`);
         }
+    }
+
+    async isTableExist(tableName: string) {
+        const result = (await this.runQuery<Record<string, number>>(`
+            SELECT EXISTS(
+                SELECT 1 
+                FROM sqlite_master 
+                WHERE type='table' AND name= ?
+            );
+        `, [tableName]))[0];
+        return result[Object.keys(result)[0]] === 1;
     }
 
     /**
@@ -229,9 +241,9 @@ export class DatabaseWrapper {
      * @returns An array of objects representing the fetched data.
      * @throws If there is an error fetching the filtered data.
      */
-    select<T extends QueryResult = QueryResult>(tableName: string, columns: string[], conditions: WhereConditionItemType[] = [], limit: number = 0, offset = 0) {
+    async select<T extends QueryResult = QueryResult>(tableName: string, columns: string[], conditions: WhereConditionItemType[] = [], limit: number = 0, offset = 0) {
+        if (!(await this.isTableExist(tableName))) throw new Error(`Table ${tableName} not found.`);
         return new Promise<T[]>((resolve, reject) => {
-            if (!this.tables[tableName]) reject(`Table ${tableName} not found.`);
             if (!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
             columns.forEach(c => {
                 if (!checkSqlQueryIdentifierName(c)) reject(`Invalid characters in column name: ${c}`);
@@ -250,8 +262,6 @@ export class DatabaseWrapper {
                 param.push(offset);
             }
 
-            console.log(queryStr);
-
             this.runQuery<T>(queryStr, param)
                 .then(result => resolve(result))
                 .catch(error => {
@@ -269,28 +279,33 @@ export class DatabaseWrapper {
      * @param dataFrame An object with the column names as keys and the values to insert as values.
      * @throws If there is an error inserting the data.
      */
-    insert(tableName: string, dataFrame: TableFrameDataType[]) {
-        return new Promise<RunResult>((resolve, reject) => {
-            if (!this.tables[tableName]) reject(`Table ${tableName} does not exist`);
-            if (!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
+    insert(tableName: string, dataFrame: TableFrameDataType[], options: {
+        conflict?: {
+            action: "ROLLBACK" | "FAIL" | "NOTHING" | "UPDATE" | "IGNORE" | "REPLACE",
+            key?: string
+        }
+    } = {}) {
+        if (!this.isTableExist(tableName)) return Promise.reject(`Table ${tableName} does not exist`);
+        if (!checkSqlQueryIdentifierName(tableName)) return Promise.reject(`Invalid characters in table name: ${tableName}`);
 
-            const queryStr = `INSERT INTO ${tableName} (${Object.keys(dataFrame[0]).map(key => {
-                if (!checkSqlQueryIdentifierName(key)) reject(`Invalid characters in column name: ${key}`);
-                return key;
-            }).join(", ")}) VALUES `;
+        const queryStr = `INSERT INTO ${tableName} (${Object.keys(dataFrame[0]).map(key => {
+            if (!checkSqlQueryIdentifierName(key)) return Promise.reject(`Invalid characters in column name: ${key}`);
+            return key;
+        }).join(", ")})`;
 
-            const valuesStr = dataFrame.map(item => {
-                return `(${(new Array(Object.keys(item).length)).fill("?").join(", ")})`;
-            }).join(", ");
+        const valuesStr = dataFrame.map(item => {
+            return ` VALUES (${(new Array(Object.keys(item).length)).fill("?").join(", ")})`;
+        }).join(", ");
 
-            this.runCommand(queryStr + valuesStr, dataFrame.map(item => Object.values(item)).flat())
-                .then(result => resolve(result))
-                .catch(error => {
-                    const msg = `Database error in table "${tableName}": ${(error as SQLite3Error).message || error}`;
-                    this.logger.error("DatabaseWrapper: " + msg);
-                    reject(msg);
-                });
-        });
+        const optionStr = !options.conflict ? "" : ` ON CONFLICT ${options.conflict.key ? `(${options.conflict.key})` : ""} DO ${options.conflict.action}`;
+        console.log(queryStr + valuesStr + optionStr)
+        try {
+            return this.runCommand(queryStr + valuesStr + optionStr, dataFrame.map(item => Object.values(item)).flat());
+        } catch (error) {
+            const msg = `Database error in table "${tableName}": ${(error as SQLite3Error).message || error}`;
+            this.logger.error("DatabaseWrapper: " + msg);
+            return Promise.reject(msg);
+        }
     }
 
     /**
@@ -333,7 +348,7 @@ export class DatabaseWrapper {
      */
     delete(tableName: string, conditions: WhereConditionItemType[]) {
         return new Promise<RunResult>((resolve, reject) => {
-            if (!this.tables[tableName]) reject(`Table ${tableName} does not exist`);
+            if (!this.isTableExist(tableName)) reject(`Table ${tableName} does not exist`);
             if (!checkSqlQueryIdentifierName(tableName)) reject(`Invalid characters in table name: ${tableName}`);
 
             const queryStr = `DELETE FROM ${tableName}` + this.getConditionStr(conditions);

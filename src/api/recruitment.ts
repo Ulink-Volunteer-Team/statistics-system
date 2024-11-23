@@ -58,6 +58,9 @@ export const deleteRecruitments = APIHandlerConstructor(
         ids: z.array(z.string()),
     }),
     (async ({ ids }, dataSource) => {
+        for(const id of ids){
+            await dataSource.eventsDBManager.deleteRecordsByEventID(id);
+        }
         const runResult = await dataSource.recruitmentDBManager.removeRecruitments(ids);
         return { changes: runResult.changes, lastInsertRowid: runResult.lastInsertRowid };
     })
@@ -75,7 +78,18 @@ export const getRecruitmentsByFuzzySearch = APIHandlerConstructor(
     })
 )
 
+export const getAllRecruitmentInfo = APIHandlerConstructor(
+    "get-all-recruitment-info",
+    z.object({
+        token: z.string(),
+    }),
+    (async (_, dataSource) => {
+        return { recruitments: await dataSource.recruitmentDBManager.getAllRecruitmentInfo() };
+    })
+);
+
 export default [
+    getAllRecruitmentInfo,
     getRecruitmentsByFuzzySearch,
     getRecruitmentByID,
     addRecruitments,

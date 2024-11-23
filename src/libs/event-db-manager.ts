@@ -45,7 +45,11 @@ export class EventDBManager {
             const haveEvent = await this.recruitmentDB.haveRecruitmentWithID(eventID);
             if (!haveStudent) warnings.push(`Student with id "${studentID}" does not exist`);
             if (!haveEvent) warnings.push(`Event with id "${eventID}" does not exist`);
-            promises.push(this.db.insert(this.tableName, [{ StudentID: studentID, EventID: eventID }]));
+            promises.push(this.db.insert(this.tableName, [{ StudentID: studentID, EventID: eventID }], {
+                conflict: {
+                    action: "NOTHING",
+                }
+            }));
         }
         const results = await Promise.all(promises);
         if (warnings.length > 0) return Promise.reject(warnings.join("\n"));
@@ -53,7 +57,34 @@ export class EventDBManager {
             changes: results.reduce((acc, r) => acc + r.changes, 0),
             lastInsertRowid: results[results.length - 1].lastInsertRowid
         };
+    }
 
+    async updateEventsOfAStudent(studentID: string, eventIDs: string[]) {
+        const allExistRecords = await this.getRecruitmentIDsByStudentID(studentID);
+
+        const recordsToDelete = allExistRecords.filter(record => !eventIDs.includes(record));
+        const recordsToAdd = eventIDs.filter(record => !allExistRecords.includes(record));
+
+        if (recordsToDelete.length > 0) {
+            await this.deleteRecords(recordsToDelete.map(record => ({ studentID, eventID: record })));
+        }
+        if (recordsToAdd.length > 0) {
+            await this.addRecords(recordsToAdd.map(record => ({ studentID, eventID: record })));
+        }
+    }
+
+    async updateStudentsOfAnEvent(eventID: string, studentIDs: string[]) {
+        const allExistRecords = await this.getStudentIDsByRecruitmentID(eventID);
+
+        const recordsToDelete = allExistRecords.filter(record => !studentIDs.includes(record));
+        const recordsToAdd = studentIDs.filter(record => !allExistRecords.includes(record));
+
+        if (recordsToDelete.length > 0) {
+            await this.deleteRecords(recordsToDelete.map(record => ({ studentID: record, eventID })));
+        }
+        if (recordsToAdd.length > 0) {
+            await this.addRecords(recordsToAdd.map(record => ({ studentID: record, eventID })));
+        }
     }
 
 

@@ -6,19 +6,20 @@ type SessionInstanceType = {
     id: string;
     ip: string;
     key: string;
-    userPublicKey: string;
+    userPublicKey?: string;
     setupTime: number;
+    secure: boolean;
 }
 
 type ClientDataType = {
     [key: string]: unknown;
 }
 
-export function handshake(manager: SessionManger, userPublicKey: string, ip: string){
-    const id = manager.createSession(ip, userPublicKey);
-    const key = manager.sessions.get(id)!.key;
+export function handshake(manager: SessionManger, ip: string, secure: boolean, userPublicKey?: string){
+    if(!secure && !userPublicKey) throw new Error('Session must be encrypted, whether use the public key or use https (secure: true)');
+    const id = manager.createSession(ip, secure, userPublicKey);
     return {
-        data: encryptRsa(JSON.stringify({id, key}), userPublicKey),
+        data: secure ? JSON.stringify({id}) : encryptRsa(JSON.stringify({id, key: manager.getSessionKey(id)}), userPublicKey!),
         id
     };
 }
@@ -31,21 +32,28 @@ export class SessionManger {
 
     /**
      * Creates a new session and stores it in the sessions map.
+     * Returns the unique session ID generated for the session.
+     * 
+     * If the session is not encrypted, and the public key is not provided, an error is thrown.
      * 
      * @param ip - The IP address of the client initiating the session.
      * @param userPublicKey - The public key of the user for secure communication.
      * @returns The unique session ID generated for the session.
      */
-    createSession(ip: string, userPublicKey: string){
+    createSession(ip: string, secure = false, userPublicKey?: string) {
+        if(!secure && !userPublicKey) {
+            throw new Error('Session must be encrypted, whether use the public key or use https (secure: true)');
+        }
         const id = uuidV7();
-        const key = crypto.randomBytes(32).toString('hex').concat(crypto.randomBytes(16).toString('hex')); // key-iv
+        const key = secure ? "" : crypto.randomBytes(32).toString('hex').concat(crypto.randomBytes(16).toString('hex')); // key-iv
         const setupTime = Date.now();
         this.sessions.set(id, {
             id,
             ip,
             key,
             userPublicKey,
-            setupTime
+            setupTime,
+            secure
         });
         return id;
     }
@@ -96,6 +104,11 @@ export class SessionManger {
      * @returns The decrypted data if the session exists, throws an error otherwise.
      */
     decryptClientData<T extends ClientDataType = ClientDataType>(data: string, sessionID: string) {
+        if (!this.haveSession(sessionID)) throw new Error("Fail to find the details of session " + sessionID);
+        if (this.sessions.get(sessionID)!.secure) {
+            console.warn(`[SessionManager] Session ${sessionID} is encrypted, and it is not necessary to call decryptClientData.`);
+            return JSON.parse(data);
+        }
         const key = this.getSessionKey(sessionID);
         if (!key) throw new Error("Fail to find the details of session " + sessionID);
         try {
@@ -109,6 +122,8 @@ export class SessionManger {
 
     /**
      * Encrypts the given data using the key of the given session ID.
+     * If the session is not found, it throws an error.
+     * If the session is secure, it does not encrypt the data.
      * 
      * @param data - The data to encrypt.
      * @param sessionID - The ID of the session to retrieve the key for.
@@ -117,6 +132,10 @@ export class SessionManger {
     encryptClientData<T extends ClientDataType = ClientDataType>(data: T, sessionID: string) {
         const session = this.sessions.get(sessionID);
         if (!session) throw new Error("Fail to find the details of session " + sessionID);
+        if(session.secure) {
+            console.warn(`[SessionManager] Session ${sessionID} is encrypted, and it is not necessary to call encryptClientData.`);
+            return JSON.stringify(data);
+        }
         try {
             return encryptAes256(JSON.stringify(data), session.key);
         }

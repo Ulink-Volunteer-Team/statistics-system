@@ -12,6 +12,23 @@ export const getStudentByID = APIHandlerConstructor(
     })
 );
 
+export const getStudentsByIDs = APIHandlerConstructor(
+    "get-students-by-ids",
+    z.object({
+        token: z.string(),
+        ids: z.array(z.string()),
+    }),
+    (async ({ ids }, dataSource) => {
+        const result = []
+        for(const id of ids) {
+            const student = await dataSource.studentDBManager.getStudentByID(id);
+            if (student) result.push(student);
+        }
+
+        return { students: result };
+    })
+)
+
 export const addStudents = APIHandlerConstructor(
     "add-students",
     z.object({
@@ -65,8 +82,20 @@ export const getStudentsByFuzzySearch = APIHandlerConstructor(
     })
 );
 
+export const getAllStudents = APIHandlerConstructor(
+    "get-all-students",
+    z.object({
+        token: z.string(),
+    }),
+    (async (_, dataSource) => {
+        return { students: await dataSource.studentDBManager.getAllStudents() };
+    })
+);
+
 export default [
+    getAllStudents,
     getStudentByID,
+    getStudentsByIDs,
     addStudents,
     removeStudents,
     updateStudents,

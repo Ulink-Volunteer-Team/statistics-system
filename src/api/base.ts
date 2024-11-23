@@ -6,6 +6,8 @@ import EventDBManager from '@/libs/event-db-manager';
 import { Request, Response } from 'express';
 import { z } from 'zod';
 
+const disableCustomEncryptionLayer = true;
+
 export type RouteDataAccessType = {
     studentDBManager: StudentDBManager,
     authenticationManager: AuthenticationManager,
@@ -95,22 +97,29 @@ export const handleApiRequest = async <PayloadType extends z.ZodType>(
     }
 
     try {
-        const details = checkSchema(sessionManager.decryptClientData<z.infer<PayloadType>>(req.body.data, sessionID), apiSchema);
+        const details = checkSchema(
+            disableCustomEncryptionLayer 
+                ? req.body?.data
+                : sessionManager.decryptClientData<z.infer<PayloadType>>(req.body.data, sessionID),
+            apiSchema
+        );
         if (details.token !== undefined) unwrapForInvalidToken(sessionID, details.token, dataSource.authenticationManager);
 
         const resolved = await handler(details, dataSource, sessionID, sessionUserIDMap);
 
         res.status(200).json({
-            data: sessionManager.encryptClientData({ ...resolved }, sessionID),
+            data: disableCustomEncryptionLayer
+                ? resolved || {}
+                : sessionManager.encryptClientData({ ...resolved }, sessionID),
             success: true,
         });
-        req.log.info(`Successfully handled route "${name}"`);
+        req.log.info({msg: `Successfully handled route "${name}"`, sessionID, handled: true, secure: disableCustomEncryptionLayer});
     } catch (e) {
         res.status(400).json({
             success: false,
             msg: `Errors in "${name}": ${String(e)}`
         });
-        req.log.warn(`Error occurred when handling route "${name}": ${String(e)}`);
+        req.log.warn({msg: `Error occurred when handling route "${name}": ${String(e)}`, sessionID, handled: false, secure: disableCustomEncryptionLayer});
     }
 }
 
@@ -140,7 +149,7 @@ const unwrapForInvalidToken = (sessionID: string | undefined, token: string | un
  * @param code - The HTTP status code for the response. Defaults to 400.
  */
 const rejectRequest = (msg: string, req: Request, res: Response, code = 400) => {
-    req.log.warn({ handled: true, msg, sessionID: req.body.session });
+    req.log.warn({ handled: true, msg, sessionID: req.body.session, secure: disableCustomEncryptionLayer });
     res.status(code).json({
         success: false,
         msg
@@ -184,19 +193,20 @@ export async function handshake(req: Request, res: Response, sessionManager: Ses
     const userPublicKey = req.body.userPublicKey;
     const ip = req.ip;
 
-    if (!userPublicKey) {
+    if (!userPublicKey && !disableCustomEncryptionLayer) {
         const msg = "Missing user's public key";
         rejectRequest(msg, req, res);
+        return;
     }
 
     try {
-        const { data, id } = handshakeBase(sessionManager, userPublicKey, ip || "");
+        const { data, id } = handshakeBase(sessionManager, ip || "", disableCustomEncryptionLayer, userPublicKey);
         res.status(200).json({
             success: true,
             api_version: API_VERSION,
-            data
+            data: disableCustomEncryptionLayer ? JSON.parse(data) : data
         });
-        req.log.info({ handled: true, msg: "Handshake success", ip, sessionId: id });
+        req.log.info({ handled: true, msg: "Handshake success", ip, sessionId: id, secure: disableCustomEncryptionLayer });
     }
     catch (e) {
         rejectRequest(String(e), req, res);
