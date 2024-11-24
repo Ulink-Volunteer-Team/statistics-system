@@ -1,6 +1,7 @@
 import express from "express";
 import { mkdirIfNotExists } from "./my-fs";
 import chokidar from "chokidar";
+import path from "path";
 
 type Logger = { info: (msg: string) => void, error: (msg: string) => void }
 
@@ -8,7 +9,7 @@ export class StaticProvider {
     readonly path: string;
     app: express.Application;
     logger: Logger
-    constructor(app: express.Application, path: string, logger: Logger ) {
+    constructor(app: express.Application, path: string, logger: Logger) {
         this.path = path;
         this.app = app;
         this.logger = logger
@@ -27,6 +28,11 @@ export class StaticProvider {
                 });
                 this.app.use(express.static(this.path));
             }
+        });
+
+        // Serving index.html for routes
+        this.app.get('*', (req, res) => {
+            res.sendFile(path.resolve(this.path, 'index.html'));
         });
     }
 }
