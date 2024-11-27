@@ -12,6 +12,22 @@ export const getRecruitmentByID = APIHandlerConstructor(
     })
 );
 
+export const getRecruitmentsByIDs = APIHandlerConstructor(
+    "get-recruitments-by-ids",
+    z.object({
+        token: z.string(),
+        ids: z.array(z.string()),
+    }),
+    (async ({ ids }, dataSource) => {
+        const result = []
+        for(const id of ids) {
+            const recruitment = await dataSource.recruitmentDBManager.getRecruitmentByID(id);
+            if (recruitment) result.push(recruitment);
+        }
+        return { recruitments: result };
+    })
+);
+
 export const addRecruitments = APIHandlerConstructor(
     "add-recruitments",
     z.object({
@@ -92,6 +108,7 @@ export default [
     getAllRecruitmentInfo,
     getRecruitmentsByFuzzySearch,
     getRecruitmentByID,
+    getRecruitmentsByIDs,
     addRecruitments,
     updateRecruitments,
     deleteRecruitments,

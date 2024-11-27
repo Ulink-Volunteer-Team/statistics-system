@@ -32,7 +32,9 @@ export class StaticProvider {
 
         // Serving index.html for routes
         this.app.get('*', (req, res) => {
-            res.sendFile(path.resolve(this.path, 'index.html'));
+            const filePath = path.resolve(this.path, 'index.html');
+            res.sendFile(filePath);
+            this.logger.info(`StaticProvider: Serving ${filePath} for ${req.url}`);
         });
     }
 }

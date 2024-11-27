@@ -66,7 +66,7 @@ export const updateStudents = APIHandlerConstructor(
         })),
     }),
     (async ({ students }, dataSource) => {
-        const runResult = await dataSource.studentDBManager.updateStudents(students).then()
+        const runResult = await dataSource.studentDBManager.updateStudents(students)
         return { changes: runResult.changes, lastInsertRowid: runResult.lastInsertRowid };
     })
 );

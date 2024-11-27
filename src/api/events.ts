@@ -108,7 +108,7 @@ export const updateRecordsOfAStudent = APIHandlerConstructor(
     })
 )
 
-export const updateRecordsOfAnEvent = APIHandlerConstructor(
+export const updateStudentsOfAnEvent = APIHandlerConstructor(
     "update-students-of-an-event",
     z.object({
         token: z.string(),
@@ -122,7 +122,7 @@ export const updateRecordsOfAnEvent = APIHandlerConstructor(
 
 export default [
     updateRecordsOfAStudent,
-    updateRecordsOfAnEvent,
+    updateStudentsOfAnEvent,
     getVolunteersByRecruitments,
     getRecruitmentsByVolunteers,
     addEventRecords,
