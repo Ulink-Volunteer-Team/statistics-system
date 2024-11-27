@@ -104,7 +104,23 @@ export const getAllRecruitmentInfo = APIHandlerConstructor(
     })
 );
 
+export const calculateVolunteerHours = APIHandlerConstructor(
+    "calculate-volunteer-hours",
+    z.object({
+        token: z.string(),
+        ids: z.array(z.string()),
+    }),
+    (async ({ ids }, dataSource) => {
+        const result: Record<string, number> = {};
+        for(const id of ids) {
+            result[id] = await dataSource.eventsDBManager.calculateVolunteerHour(id);
+        }
+        return { hours: result };
+    })
+)
+
 export default [
+    calculateVolunteerHours,
     getAllRecruitmentInfo,
     getRecruitmentsByFuzzySearch,
     getRecruitmentByID,
