@@ -98,7 +98,7 @@ export const handleApiRequest = async <PayloadType extends z.ZodType>(
 
     try {
         const details = checkSchema(
-            disableCustomEncryptionLayer 
+            disableCustomEncryptionLayer
                 ? req.body?.data
                 : sessionManager.decryptClientData<z.infer<PayloadType>>(req.body.data, sessionID),
             apiSchema
@@ -181,6 +181,21 @@ export function checkSchema<T extends z.ZodType<unknown>>(data: unknown, schema:
 }
 
 /**
+ * Responds with the current time and the API version.
+ *
+ * @param res - The response object to send data back to the client.
+ *
+ * @returns A promise that resolves when the request has been handled and a response has been sent.
+ */
+export async function heartbeat(_: Request, res: Response) {
+	res.status(200).json({
+		time: Date.now(),
+		api_version: API_VERSION,
+		success: true
+	});
+}
+
+/**
  * Handles a handshake request.
  *
  * @param req - The request object from the client.
@@ -213,6 +228,15 @@ export async function handshake(req: Request, res: Response, sessionManager: Ses
     }
 }
 
+/**
+ * Handles a close session request.
+ *
+ * @param req - The request object from the client.
+ * @param res - The response object to send data back to the client.
+ * @param sessionManager - Manages sessions for the API requests.
+ *
+ * @returns A promise that resolves when the request has been handled and a response has been sent.
+ */
 export async function closeSession(req: Request, res: Response, sessionManager: SessionManger) {
     try {
         sessionManager.closeSession(req.body.session);
