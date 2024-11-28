@@ -2,7 +2,7 @@ import students from "./students";
 import recruitments from "./recruitment";
 import events from "./events";
 import authentication from "./authentication";
-import { handshake, closeSession } from "./base";
+import { handshake, closeSession, heartbeat } from "./base";
 
 export default [
     ...students,
@@ -16,5 +16,9 @@ export default [
     {
         name: "close-session",
         handler: closeSession
-    }
+    },
+	{
+		name: "heartbeat",
+		handler: heartbeat
+	}
 ];
