@@ -9,7 +9,7 @@ export const signIn = APIHandlerConstructor(
         cf_turnstile_token: z.string()
     }),
     (async ({ id, password, cf_turnstile_token }, dataSource, sessionID, sessionUserIDMap) => {
-        const token = await dataSource.authenticationManager.login(id, password, cf_turnstile_token, IP);
+        const token = await dataSource.authenticationManager.login(id, password, cf_turnstile_token);
         sessionUserIDMap.set(sessionID, id);
         return { token };
     })
@@ -25,7 +25,7 @@ export const signUp = APIHandlerConstructor(
     }),
     (async ({ id, password, permissions, cf_turnstile_token }, dataSource, sessionID, sessionUserIDMap) => {
         return new Promise((resolve, reject) => {
-            dataSource.authenticationManager.addUser(id, password, permissions, cf_turnstile_token, IP)
+            dataSource.authenticationManager.addUser(id, password, permissions, cf_turnstile_token)
                 .then(() => {
                     sessionUserIDMap.set(sessionID, id);
                     resolve();

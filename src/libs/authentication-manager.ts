@@ -90,8 +90,8 @@ export class AuthenticationManager {
     * @param password The corresponding password
     * @returns Token generated, expires in 1 day
     */
-    async login(id: string, password: string,cf_turnstile_token: string,IP: string): Promise<string> {
-        if (!CheckTurnstile(cf_turnstile_token, IP)) return Promise.reject("Turnstile Check Failed");
+    async login(id: string, password: string,cf_turnstile_token: string): Promise<string> {
+        if (!CheckTurnstile(cf_turnstile_token)) return Promise.reject("Turnstile Check Failed");
         if (!await this.haveUser(id)) return Promise.reject(`Cannot find user ${id}.`);
         if (!await this.haveMatchingUser(id, password)) await Promise.reject(`Wrong password`);
 
