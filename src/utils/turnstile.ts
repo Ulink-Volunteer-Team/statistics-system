@@ -1,21 +1,26 @@
 import crypto from "crypto";
 
-export function checkTurnstile(token : string, IP : string): boolean {
+export function CheckTurnstile(token : string, IP : string): boolean {
     const SECRET_KEY = "CF_SECRET_KEY";
 
-    let formData = new FormData();
+    const formData = new FormData();
     formData.append("secret",SECRET_KEY);
     formData.append("response",token);
     formData.append("remoteip",IP);
     formData.append("idempotency_key",crypto.randomUUID());
 
     const url = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-    const firstResult = await fetch(url, {
+    var ret = false;
+    fetch(url, {
       body: formData,
       method: "POST",
-    });
+    })
+    .then(response => response.json())
+    .then(data => {
+        ret = data.success
+    })
+    .catch(err => console.warn(err));
     
-    const firstOutcome = await firstResult.json();
-    return firstOutcome.success;
+    return ret;
     
 }

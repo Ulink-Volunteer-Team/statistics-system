@@ -1,4 +1,4 @@
-import { checkTurnstile } from '@/utils/turnstile';
+import { CheckTurnstile } from '@/utils/turnstile';
 import {DatabaseWrapper} from '../utils/sqlite-wrapper';
 import bcrypt from 'bcrypt-fast';
 import * as jwt from 'jsonwebtoken';
@@ -91,7 +91,7 @@ export class AuthenticationManager {
     * @returns Token generated, expires in 1 day
     */
     async login(id: string, password: string,cf_turnstile_token: string,IP: string): Promise<string> {
-        if (!checkTurnstile(cf_turnstile_token, IP)) return Promise.reject("Turnstile Check Failed");
+        if (!CheckTurnstile(cf_turnstile_token, IP)) return Promise.reject("Turnstile Check Failed");
         if (!await this.haveUser(id)) return Promise.reject(`Cannot find user ${id}.`);
         if (!await this.haveMatchingUser(id, password)) await Promise.reject(`Wrong password`);
 
@@ -161,7 +161,7 @@ export class AuthenticationManager {
      * @param permissions The permission of the user (not implemented)
      */
     async addUser(id: string, password: string, permissions: string, cf_turnstile_token: string, IP: string): Promise<void> {
-        if (!checkTurnstile(cf_turnstile_token, IP)) return Promise.reject("Turnstile Check Failed");
+        if (!CheckTurnstile(cf_turnstile_token, IP)) return Promise.reject("Turnstile Check Failed");
         if (await this.haveUser(id)) {
             return Promise.reject(`User "${id}" already exists`);
         }
