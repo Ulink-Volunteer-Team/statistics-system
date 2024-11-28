@@ -54,6 +54,7 @@ function initConfig() {
         TOKEN_SECRET_KEY: z.string(),
         TOKEN_SALT_ROUND: z.number(),
         TOKEN_EXPIRES_IN: z.string(),
+		TURNSTILE_SECRET_KEY: z.string(),
     });
 
     const defaultConfigs: z.infer<typeof configSchema> = {
@@ -67,6 +68,8 @@ function initConfig() {
         TOKEN_SECRET_KEY: "secret",
         TOKEN_SALT_ROUND: 12,
         TOKEN_EXPIRES_IN: "1d",
+
+		TURNSTILE_SECRET_KEY: "secret",
     }
     return {
         promise: new ConfigProvider(configSchema, defaultConfigs).getConfig(process.env.CONFIG_FILE || "config.yml"),
@@ -106,7 +109,8 @@ function initManagers(db: DatabaseWrapper, config: ConfigType) {
             const authenticationManager = new AuthenticationManager(db, () => resolve(authenticationManager), {
                 secretKey: config.TOKEN_SECRET_KEY,
                 saltRounds: config.TOKEN_SALT_ROUND,
-                expiresIn: config.TOKEN_EXPIRES_IN
+                expiresIn: config.TOKEN_EXPIRES_IN,
+				turnstileSecretKey: config.TURNSTILE_SECRET_KEY,
             });
         }),
         new Promise<RecruitmentDBManager>((resolve) => {

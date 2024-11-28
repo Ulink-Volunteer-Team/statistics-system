@@ -1,5 +1,6 @@
 import { Database, SQLite3Error, QueryOptions, QueryResult, RunResult, Statement } from 'node-sqlite3-wasm';
 import DeathEvent from './death-event';
+import path from "path";
 
 export type AvailableDataTypeType = string | number | boolean | null;
 
@@ -75,7 +76,7 @@ export class DatabaseWrapper {
         }
         if (!checkSqlQueryIdentifierName(dbName)) throw new Error(`Invalid characters in db name: ${dbName}`);
 
-        this.dbPath = `${dbDirectory}${dbDirectory.endsWith("/") ? "" : "/"}${dbName}.db`;
+        this.dbPath = path.resolve(`${dbDirectory}${dbDirectory.endsWith("/") ? "" : "/"}${dbName}.db`);
         this.logger = logger;
         this.deathEvent = deathEvent;
 

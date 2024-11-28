@@ -1,4 +1,4 @@
-import { CheckTurnstile } from '@/utils/turnstile';
+import { checkTurnstile } from '@/utils/turnstile';
 import {DatabaseWrapper} from '../utils/sqlite-wrapper';
 import bcrypt from 'bcrypt-fast';
 import * as jwt from 'jsonwebtoken';
@@ -13,10 +13,12 @@ type AuthenticationManagerConfig = {
     secretKey: string;
     saltRounds: number;
     expiresIn: string;
+	turnstileSecretKey: string
 }
 
 export class AuthenticationManager {
     db: DatabaseWrapper;
+	private readonly turnstileSecretKey;
     private readonly saltRounds;
     private readonly secretKey;
     private readonly expiresIn;
@@ -32,6 +34,7 @@ export class AuthenticationManager {
         this.secretKey = config.secretKey || "";
         this.saltRounds = config.saltRounds || 12;
         this.expiresIn = config.expiresIn || "1d";
+		this.turnstileSecretKey = config.turnstileSecretKey || "secret";
         this.db.prepareTable(this.tableName, {
             id: {
                 type: "TEXT",
@@ -90,8 +93,8 @@ export class AuthenticationManager {
     * @param password The corresponding password
     * @returns Token generated, expires in 1 day
     */
-    async login(id: string, password: string,cf_turnstile_token: string): Promise<string> {
-        if (!CheckTurnstile(cf_turnstile_token)) return Promise.reject("Turnstile Check Failed");
+    async login(id: string, password: string,turnstileToken: string): Promise<string> {
+        if (!checkTurnstile(turnstileToken, this.turnstileSecretKey)) return Promise.reject("Turnstile Check Failed");
         if (!await this.haveUser(id)) return Promise.reject(`Cannot find user ${id}.`);
         if (!await this.haveMatchingUser(id, password)) await Promise.reject(`Wrong password`);
 
@@ -160,8 +163,8 @@ export class AuthenticationManager {
      * @param password The plain-text password
      * @param permissions The permission of the user (not implemented)
      */
-    async addUser(id: string, password: string, permissions: string, cf_turnstile_token: string, IP: string): Promise<void> {
-        if (!CheckTurnstile(cf_turnstile_token, IP)) return Promise.reject("Turnstile Check Failed");
+    async addUser(id: string, password: string, permissions: string, turnstileToken: string): Promise<void> {
+        if (!checkTurnstile(turnstileToken, this.turnstileSecretKey)) return Promise.reject("Turnstile Check Failed");
         if (await this.haveUser(id)) {
             return Promise.reject(`User "${id}" already exists`);
         }
