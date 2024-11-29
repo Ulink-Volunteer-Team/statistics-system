@@ -104,8 +104,8 @@ export class DatabaseWrapper {
     async isTableExist(tableName: string) {
         const result = (await this.runQuery<Record<string, number>>(`
             SELECT EXISTS(
-                SELECT 1 
-                FROM sqlite_master 
+                SELECT 1
+                FROM sqlite_master
                 WHERE type='table' AND name= ?
             );
         `, [tableName]))[0];
@@ -299,7 +299,6 @@ export class DatabaseWrapper {
         }).join(", ");
 
         const optionStr = !options.conflict ? "" : ` ON CONFLICT ${options.conflict.key ? `(${options.conflict.key})` : ""} DO ${options.conflict.action}`;
-        console.log(queryStr + valuesStr + optionStr)
         try {
             return this.runCommand(queryStr + valuesStr + optionStr, dataFrame.map(item => Object.values(item)).flat());
         } catch (error) {
@@ -342,7 +341,7 @@ export class DatabaseWrapper {
 
     /**
      * Deletes rows from the specified table where the conditions are met.
-     * 
+     *
      * @param tableName The name of the table to delete from.
      * @param conditions An array of conditions to determine which rows to delete.
      * @throws If there is an error deleting the data.
@@ -366,9 +365,9 @@ export class DatabaseWrapper {
 
     /**
      * Begins a new transaction.
-     * 
+     *
      * This method will throw an error if a transaction is already in progress.
-     * 
+     *
      * @throws If there is an error beginning the transaction.
      */
     beginTransaction() {
@@ -382,9 +381,9 @@ export class DatabaseWrapper {
 
     /**
      * Commits the current transaction.
-     * 
+     *
      * This method will throw an error if no transaction is in progress.
-     * 
+     *
      * @throws If there is an error committing the transaction.
      */
     commitTransaction() {
@@ -398,9 +397,9 @@ export class DatabaseWrapper {
 
     /**
      * Rolls back the current transaction.
-     * 
+     *
      * This method will throw an error if no transaction is in progress.
-     * 
+     *
      * @throws If there is an error rolling back the transaction.
      */
     rollbackTransaction() {
@@ -414,7 +413,7 @@ export class DatabaseWrapper {
 
     /**
      * Closes the database.
-     * 
+     *
      * @throws If there is an error closing the database.
      */
     close() {

@@ -94,7 +94,7 @@ export class AuthenticationManager {
     * @returns Token generated, expires in 1 day
     */
     async login(id: string, password: string,turnstileToken: string): Promise<string> {
-        if (!checkTurnstile(turnstileToken, this.turnstileSecretKey)) return Promise.reject("Turnstile Check Failed");
+        if (!await checkTurnstile(turnstileToken, this.turnstileSecretKey)) return Promise.reject("Turnstile Check Failed");
         if (!await this.haveUser(id)) return Promise.reject(`Cannot find user ${id}.`);
         if (!await this.haveMatchingUser(id, password)) await Promise.reject(`Wrong password`);
 
@@ -164,7 +164,7 @@ export class AuthenticationManager {
      * @param permissions The permission of the user (not implemented)
      */
     async addUser(id: string, password: string, permissions: string, turnstileToken: string): Promise<void> {
-        if (!checkTurnstile(turnstileToken, this.turnstileSecretKey)) return Promise.reject("Turnstile Check Failed");
+        if (!await checkTurnstile(turnstileToken, this.turnstileSecretKey)) return Promise.reject("Turnstile Check Failed");
         if (await this.haveUser(id)) {
             return Promise.reject(`User "${id}" already exists`);
         }

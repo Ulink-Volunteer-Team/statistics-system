@@ -51,6 +51,9 @@ export const removeStudents = APIHandlerConstructor(
         ids: z.array(z.string()),
     }),
     (async ({ ids }, dataSource) => {
+		for(const id of ids){
+            await dataSource.eventsDBManager.deleteRecordsByStudentID(id);
+        }
         const runResult = await dataSource.studentDBManager.removeStudents(ids);
         return { changes: runResult.changes, lastInsertRowid: runResult.lastInsertRowid };
     })
