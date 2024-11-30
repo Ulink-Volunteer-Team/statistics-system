@@ -6,7 +6,7 @@ import { IpFilter } from "express-ipfilter"
 import z from "zod";
 import cors from "cors";
 import pino from "pino";
-import pinoHttp from "pino-http";
+import pinoHttp, { HttpLogger } from "pino-http";
 import pinoPretty, { PinoPretty } from "pino-pretty";
 
 import serverRoutes from '@/api/index';
@@ -23,7 +23,7 @@ import { StaticProvider } from './utils/static-provider';
 
 const disableIpLimiter = true;
 
-function initLogger() {
+function initLogger(config: ConfigType) {
     const pinoHttpConfig = {
         autoLogging: false,
         quietReqLogger: true,
@@ -36,8 +36,8 @@ function initLogger() {
     }
 
     const pinoPrettyInst = pinoPretty(pinoPrettyConfig);
-    const loggerHttp = pinoHttp(pinoHttpConfig, pinoPrettyInst)
-    const logger = pino(pinoPrettyInst);
+    const loggerHttp = config.LOGGER_PRETTY_PRINT ? pinoHttp(pinoHttpConfig, pinoPrettyInst) : pinoHttp(pinoHttpConfig)
+    const logger = config.LOGGER_PRETTY_PRINT ? pino(pinoPrettyInst) : pino();
 
     return { logger, loggerHttp };
 }
@@ -55,6 +55,7 @@ function initConfig() {
         TOKEN_SALT_ROUND: z.number(),
         TOKEN_EXPIRES_IN: z.string(),
 		TURNSTILE_SECRET_KEY: z.string(),
+		LOGGER_PRETTY_PRINT: z.boolean().optional().default(false),
     });
 
     const defaultConfigs: z.infer<typeof configSchema> = {
@@ -70,6 +71,7 @@ function initConfig() {
         TOKEN_EXPIRES_IN: "1d",
 
 		TURNSTILE_SECRET_KEY: "secret",
+		LOGGER_PRETTY_PRINT: false
     }
     return {
         promise: new ConfigProvider(configSchema, defaultConfigs).getConfig(process.env.CONFIG_FILE || "config.yml"),
@@ -79,7 +81,7 @@ function initConfig() {
 
 type ConfigType = z.infer<Awaited<ReturnType<typeof initConfig>>["schema"]>;
 
-function attachRoutes(app: express.Application, sessionManager: SessionManger, studentDBManager: StudentDBManager, authenticationManager: AuthenticationManager, recruitmentDBManager: RecruitmentDBManager, eventsDBManager: EventDBManager) {
+function attachRoutes(app: express.Application, logger: pino.Logger, sessionManager: SessionManger, studentDBManager: StudentDBManager, authenticationManager: AuthenticationManager, recruitmentDBManager: RecruitmentDBManager, eventsDBManager: EventDBManager) {
     serverRoutes.forEach(({ name, handler }) => {
         app.post(`/${name}`, (req, res) => {
             const url = req.originalUrl.split("/").pop();
@@ -119,7 +121,7 @@ function initManagers(db: DatabaseWrapper, config: ConfigType) {
     ]);
 }
 
-function initExpress(config: ConfigType) {
+function initExpress(config: ConfigType, logger: pino.Logger, loggerHttp: HttpLogger) {
     const configBannedIPs = config.BANNED_IP;
     const bannedIPs = (Array.isArray(configBannedIPs) ? configBannedIPs : []) as string[];
     const ipFilter = IpFilter(bannedIPs, { mode: 'deny' });
@@ -142,7 +144,7 @@ function initExpress(config: ConfigType) {
     return app;
 }
 
-function main(config: ConfigType) {
+function main(config: ConfigType, logger: pino.Logger, loggerHttp: HttpLogger) {
     return new Promise<void>((resolve, reject) => {
         try {
             const deathEvent = new DeathEvent(logger);
@@ -155,12 +157,12 @@ function main(config: ConfigType) {
             const port = config.SERVER_PORT;
             const sessionManager = new SessionManger();
 
-            const app = initExpress(config);
+            const app = initExpress(config, logger, loggerHttp);
 
             initManagers(db, config)
                 .then(([studentDBManager, authenticationManager, recruitmentDBManager]) => {
                     const eventsDBManager = new EventDBManager(db, studentDBManager, recruitmentDBManager);
-                    attachRoutes(app, sessionManager, studentDBManager, authenticationManager, recruitmentDBManager, eventsDBManager);
+                    attachRoutes(app, logger, sessionManager, studentDBManager, authenticationManager, recruitmentDBManager, eventsDBManager);
                     app.listen(port, '0.0.0.0', async () => {
                         await (new StaticProvider(app, "./static", logger)).serve();
                         logger.info(`Server is running at port ${port}`);
@@ -173,13 +175,14 @@ function main(config: ConfigType) {
     });
 }
 
-const { logger, loggerHttp } = initLogger();
+
 const { promise: configPromise } = initConfig()
 
 configPromise
     .then((config: ConfigType) => {
+		const { logger, loggerHttp } = initLogger(config);
         logger.info("Config is ready");
-        main(config)
+        main(config, logger, loggerHttp)
             .then(() => {
                 logger.info("Server is ready");
             })
@@ -190,9 +193,9 @@ configPromise
     })
     .catch((err: z.ZodError | string) => {
         if (typeof err == "string") {
-            logger.error(err);
+			console.error(`Fail on loading the config: ${err}`);
         } else {
-            logger.error(
+            console.error(
                 "Fail to get all the fields for the config\n" +
                 err.issues.map(issue => {
                     return `  ${issue.path.join(".")}: ${issue.message}`;
