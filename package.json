@@ -42,6 +42,7 @@
     "esbuild": "^0.24.0",
     "eslint": "^8.57.1",
     "js-yaml": "^4.1.0",
+    "node-libcurl": "^4.0.0",
     "pino-pretty": "^11.3.0",
     "typedoc": "^0.26.10",
     "typedoc-github-wiki-theme": "^2.0.0",

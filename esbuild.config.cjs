@@ -16,6 +16,7 @@ const options = {
 	format: "cjs",
 	loader: {
 		".wasm": "copy",
+		".node": "copy",
 	},
 	outExtension: { '.js': '.cjs' },
 	assetNames: '[name]',
