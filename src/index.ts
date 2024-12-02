@@ -191,6 +191,17 @@ configPromise
     .then((config: ConfigType) => {
 		const { logger, loggerHttp } = initLogger(config);
         logger.info("Config is ready");
+
+		logger.info({
+			msg: "Config",
+			// filter out the secret key
+			config: {
+				...config,
+				TOKEN_SECRET_KEY: "********",
+				TURNSTILE_SECRET_KEY: "********",
+			}
+		})
+
         main(config, logger, loggerHttp)
             .then(() => {
                 logger.info("Server is ready");

@@ -29,11 +29,19 @@ export class ConfigProvider<T extends z.ZodType> {
             env[key] = JSON.parse(process.env[key] || "null");
         }
 
-        return this.schema.parse({
+		const combined = ({
             ...this.defaults,
             ...(await this.readConfigFromFile(file)),
-            ...process.env,
-        });
+            ...((() => {
+				const obj = {} as Record<string, unknown>;
+				for(const key of Object.keys(this.defaults)) {
+					if(process.env[key]) (obj)[key] = JSON.parse(process.env[key]);
+				}
+				return obj;
+			})()),
+        })
+
+        return this.schema.parse(combined);
     }
 }
 

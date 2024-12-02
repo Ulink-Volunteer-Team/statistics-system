@@ -49,7 +49,7 @@ export class AuthenticationManager {
         this.saltRounds = config.saltRounds || 12;
         this.expiresIn = config.expiresIn || "1d";
 
-		this.turnstileRequired = config.turnstileRequired || true;
+		this.turnstileRequired = config.turnstileRequired !== undefined ? config.turnstileRequired : true;
 		if(this.turnstileRequired) {
 			if(!config.turnstileSecretKey) throw new Error("Turnstile secret key is required");
 			this.turnstileSecretKey = config.turnstileSecretKey;
