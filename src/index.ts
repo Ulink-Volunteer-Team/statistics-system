@@ -54,8 +54,14 @@ function initConfig() {
         TOKEN_SECRET_KEY: z.string(),
         TOKEN_SALT_ROUND: z.number(),
         TOKEN_EXPIRES_IN: z.string(),
-		TURNSTILE_SECRET_KEY: z.string(),
+
+		TURNSTILE_SECRET_KEY: z.string().optional(),
+		TURNSTILE_REQUIRED: z.boolean().optional().default(true),
+
 		LOGGER_PRETTY_PRINT: z.boolean().optional().default(false),
+    }).refine(data => !data.TURNSTILE_REQUIRED || !!data.TURNSTILE_SECRET_KEY, {
+        message: "TURNSTILE_SECRET_KEY is required when Cloudflare Turnstile is enabled",
+        path: ["TURNSTILE_SECRET_KEY"],
     });
 
     const defaultConfigs: z.infer<typeof configSchema> = {
@@ -71,6 +77,8 @@ function initConfig() {
         TOKEN_EXPIRES_IN: "1d",
 
 		TURNSTILE_SECRET_KEY: "secret",
+		TURNSTILE_REQUIRED: true,
+
 		LOGGER_PRETTY_PRINT: false
     }
     return {
@@ -113,6 +121,7 @@ function initManagers(db: DatabaseWrapper, config: ConfigType) {
                 saltRounds: config.TOKEN_SALT_ROUND,
                 expiresIn: config.TOKEN_EXPIRES_IN,
 				turnstileSecretKey: config.TURNSTILE_SECRET_KEY,
+				turnstileRequired: config.TURNSTILE_REQUIRED
             });
         }),
         new Promise<RecruitmentDBManager>((resolve) => {

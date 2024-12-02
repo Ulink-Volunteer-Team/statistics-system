@@ -9,16 +9,30 @@ type UserAccountType = {
     permissions: string;
 }
 
+/** The configuration for the AuthenticationManager */
 type AuthenticationManagerConfig = {
+    /** The secret key used for generating JWT tokens */
     secretKey: string;
+    /** The number of salt rounds used for hashing passwords */
     saltRounds: number;
+    /** The duration for which the JWT tokens are valid */
     expiresIn: string;
-	turnstileSecretKey: string
+    /** The secret key used for verifying Turnstile tokens
+     *
+     * If `turnstileRequired` is `false`, this field is ignored */
+	turnstileSecretKey: string;
+    /**  Whether Turnstile verification is required
+     *
+     * If `true`, the `turnstileSecretKey` is required
+     * If `false`, the `turnstileSecretKey` is ignored
+     */
+	turnstileRequired: boolean;
 }
 
 export class AuthenticationManager {
     db: DatabaseWrapper;
 	private readonly turnstileSecretKey;
+	private turnstileRequired: boolean;
     private readonly saltRounds;
     private readonly secretKey;
     private readonly expiresIn;
@@ -34,7 +48,14 @@ export class AuthenticationManager {
         this.secretKey = config.secretKey || "";
         this.saltRounds = config.saltRounds || 12;
         this.expiresIn = config.expiresIn || "1d";
-		this.turnstileSecretKey = config.turnstileSecretKey || "secret";
+
+		this.turnstileRequired = config.turnstileRequired || true;
+		if(this.turnstileRequired) {
+			if(!config.turnstileSecretKey) throw new Error("Turnstile secret key is required");
+			this.turnstileSecretKey = config.turnstileSecretKey;
+		}
+		else this.turnstileSecretKey = "";
+
         this.db.prepareTable(this.tableName, {
             id: {
                 type: "TEXT",
@@ -93,8 +114,8 @@ export class AuthenticationManager {
     * @param password The corresponding password
     * @returns Token generated, expires in 1 day
     */
-    async login(id: string, password: string,turnstileToken: string): Promise<string> {
-        if (!await checkTurnstile(turnstileToken, this.turnstileSecretKey)) return Promise.reject("Turnstile Check Failed");
+    async login(id: string, password: string, turnstileToken: string): Promise<string> {
+        if (this.turnstileRequired && (!await checkTurnstile(turnstileToken, this.turnstileSecretKey))) return Promise.reject("Turnstile Check Failed");
         if (!await this.haveUser(id)) return Promise.reject(`Cannot find user ${id}.`);
         if (!await this.haveMatchingUser(id, password)) await Promise.reject(`Wrong password`);
 
@@ -164,7 +185,7 @@ export class AuthenticationManager {
      * @param permissions The permission of the user (not implemented)
      */
     async addUser(id: string, password: string, permissions: string, turnstileToken: string): Promise<void> {
-        if (!await checkTurnstile(turnstileToken, this.turnstileSecretKey)) return Promise.reject("Turnstile Check Failed");
+        if (this.turnstileRequired && (!await checkTurnstile(turnstileToken, this.turnstileSecretKey))) return Promise.reject("Turnstile Check Failed");
         if (await this.haveUser(id)) {
             return Promise.reject(`User "${id}" already exists`);
         }
