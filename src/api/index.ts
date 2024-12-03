@@ -5,18 +5,18 @@ import authentication from "./authentication";
 import { handshake, closeSession, heartbeat } from "./base";
 
 export default [
-    ...students,
-    ...recruitments,
-    ...events,
-    ...authentication,
-    {
-        name: "handshake",
-        handler: handshake
-    },
-    {
-        name: "close-session",
-        handler: closeSession
-    },
+	...students,
+	...recruitments,
+	...events,
+	...authentication,
+	{
+		name: "handshake",
+		handler: handshake
+	},
+	{
+		name: "close-session",
+		handler: closeSession
+	},
 	{
 		name: "heartbeat",
 		handler: heartbeat

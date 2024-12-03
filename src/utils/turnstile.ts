@@ -15,7 +15,7 @@ const TURNSTILE_ERROR_CODES = {
 	"bad-request": "The request was rejected due to being malformed.",
 	"timeout-or-duplicate": "The response parameter (token) is either expired (issued over five minutes ago) or has already been validated.",
 	"internal-error": "An internal error occurred during response validation. Please retry the request."
-  }
+}
 
 
 /**
@@ -37,9 +37,9 @@ export async function checkTurnstile(token: string, secretKey: string, verificat
 		],
 	})
 
-	if(!data.success) {
-		for(const [code, message] of Object.entries(TURNSTILE_ERROR_CODES)) {
-			if(data.error_code === code) {
+	if (!data.success) {
+		for (const [code, message] of Object.entries(TURNSTILE_ERROR_CODES)) {
+			if (data.error_code === code) {
 				logger.error(message);
 			}
 		}

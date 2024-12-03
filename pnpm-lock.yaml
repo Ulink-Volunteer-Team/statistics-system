@@ -44,9 +44,6 @@ importers:
       pino-http:
         specifier: ^10.3.0
         version: 10.3.0
-      trek-captcha:
-        specifier: github:trekjs/captcha
-        version: https://codeload.github.com/trekjs/captcha/tar.gz/5d31312bbcf0d96ad4d73266bd242c64202a9911
       uuid:
         specifier: ^10.0.0
         version: 10.0.0
@@ -1671,10 +1668,6 @@ packages:
 
   tr46@0.0.3:
     resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
-
-  trek-captcha@https://codeload.github.com/trekjs/captcha/tar.gz/5d31312bbcf0d96ad4d73266bd242c64202a9911:
-    resolution: {tarball: https://codeload.github.com/trekjs/captcha/tar.gz/5d31312bbcf0d96ad4d73266bd242c64202a9911}
-    version: 0.4.0
 
   trim-lines@3.0.1:
     resolution: {integrity: sha512-kRj8B+YHZCc9kQYdWfJB2/oUl9rA99qbowYYBtr4ui4mZyAQ2JpvVBd/6U2YloATfqBhBTSMhTpgBHtU0Mf3Rg==}
@@ -3518,8 +3511,6 @@ snapshots:
   toidentifier@1.0.1: {}
 
   tr46@0.0.3: {}
-
-  trek-captcha@https://codeload.github.com/trekjs/captcha/tar.gz/5d31312bbcf0d96ad4d73266bd242c64202a9911: {}
 
   trim-lines@3.0.1: {}
 
