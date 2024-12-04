@@ -48,7 +48,7 @@ export class ConfigProvider<T extends z.ZodType> {
      * The configuration object is constructed from the following sources in order of priority:
      * 1. The default values provided in the constructor
      * 2. The values loaded from the configuration file
-     * 3. The values set as environment variables
+     * 3. The values set as environment variables (parsed by JSON)
      *
      * If a value is set in multiple sources, the value from the highest-priority source will be used.
      *
@@ -66,7 +66,7 @@ export class ConfigProvider<T extends z.ZodType> {
      *
      * If a value is invalid according to the schema, a {@link z.ZodError} will be thrown.
      */
-    async getConfig(file: string): Promise<z.infer<T>> {
+    async getConfig(file: string): Promise<Required<z.infer<T>>> {
         const env = {} as Record<string, unknown>;
 
         for (const key of Object.keys(this.schema)) {
@@ -85,7 +85,7 @@ export class ConfigProvider<T extends z.ZodType> {
 			})()),
         })
 
-        return this.schema.parse(combined);
+        return this.schema.parse(combined) as Required<z.infer<T>>;
     }
 }
 

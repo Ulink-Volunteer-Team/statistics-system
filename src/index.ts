@@ -21,13 +21,11 @@ import DatabaseWrapper from "./utils/sqlite-wrapper";
 
 import { StaticProvider } from './utils/static-provider';
 
-const disableIpLimiter = true;
-
 function initLogger(config: ConfigType) {
     const pinoHttpConfig = {
         autoLogging: false,
-        quietReqLogger: true,
-        quietResLogger: true
+        quietReqLogger: config.LOGGER_PRETTY_PRINT,
+        quietResLogger: config.LOGGER_PRETTY_PRINT
     };
     const pinoPrettyConfig: PinoPretty.PrettyOptions = {
         colorize: true,
@@ -46,19 +44,24 @@ function initConfig() {
     const configSchema = z.object({
         DB_NAME: z.string(),
         DB_DIR: z.string(),
+		STATIC_DIR: z.string(),
 
         SERVER_PORT: z.number(),
+		TRUST_PROXY: z.boolean(),
+		PROXY_IP_ADDRESS: z.array(z.string()),
 
-        IP_MAX_PER_MIN: z.number(),
+		ENABLE_RATE_LIMIT: z.boolean().optional(),
+        RATE_LIMIT_PER_MIN: z.number(),
         BANNED_IP: z.array(z.string()),
+
         TOKEN_SECRET_KEY: z.string(),
         TOKEN_SALT_ROUND: z.number(),
         TOKEN_EXPIRES_IN: z.string(),
 
 		TURNSTILE_SECRET_KEY: z.string().optional(),
-		TURNSTILE_REQUIRED: z.boolean().optional().default(true),
+		TURNSTILE_REQUIRED: z.boolean().optional(),
 
-		LOGGER_PRETTY_PRINT: z.boolean().optional().default(false),
+		LOGGER_PRETTY_PRINT: z.boolean().optional(),
     }).refine(data => !data.TURNSTILE_REQUIRED || !!data.TURNSTILE_SECRET_KEY, {
         message: "TURNSTILE_SECRET_KEY is required when Cloudflare Turnstile is enabled",
         path: ["TURNSTILE_SECRET_KEY"],
@@ -67,9 +70,14 @@ function initConfig() {
     const defaultConfigs: z.infer<typeof configSchema> = {
         DB_NAME: "database",
         DB_DIR: "./",
+		STATIC_DIR: "./static",
 
         SERVER_PORT: 3000,
-        IP_MAX_PER_MIN: 100,
+		TRUST_PROXY: false,
+		PROXY_IP_ADDRESS: [],
+
+		ENABLE_RATE_LIMIT: true,
+        RATE_LIMIT_PER_MIN: 100,
         BANNED_IP: [],
 
         TOKEN_SECRET_KEY: "secret",
@@ -82,12 +90,12 @@ function initConfig() {
 		LOGGER_PRETTY_PRINT: false
     }
     return {
-        promise: new ConfigProvider(configSchema, defaultConfigs).getConfig(process.env.CONFIG_FILE || "config.yml"),
+        promise: new ConfigProvider(configSchema, defaultConfigs).getConfig(process.env.SERVER_CONFIG_FILE || "config.yml"),
         schema: configSchema
     }
 }
 
-type ConfigType = z.infer<Awaited<ReturnType<typeof initConfig>>["schema"]>;
+type ConfigType = Required<z.infer<Awaited<ReturnType<typeof initConfig>>["schema"]>>;
 
 function attachRoutes(app: express.Application, logger: pino.Logger, sessionManager: SessionManger, studentDBManager: StudentDBManager, authenticationManager: AuthenticationManager, recruitmentDBManager: RecruitmentDBManager, eventsDBManager: EventDBManager) {
     serverRoutes.forEach(({ name, handler }) => {
@@ -142,10 +150,14 @@ function initExpress(config: ConfigType, logger: pino.Logger, loggerHttp: HttpLo
         .use(ipFilter)
         .use(cors());
 
-    if(!disableIpLimiter){
+	if(config.TRUST_PROXY) {
+		app.set('trust proxy', config.PROXY_IP_ADDRESS);
+	}
+
+    if(config.ENABLE_RATE_LIMIT) {
         const limiter = rateLimit({
             windowMs: 60000,
-            limit: config.IP_MAX_PER_MIN,
+            limit: config.RATE_LIMIT_PER_MIN,
             message: 'Too many requests from this IP, please try again later.'
         });
         app.use(limiter);
@@ -173,7 +185,7 @@ function main(config: ConfigType, logger: pino.Logger, loggerHttp: HttpLogger) {
                     const eventsDBManager = new EventDBManager(db, studentDBManager, recruitmentDBManager);
                     attachRoutes(app, logger, sessionManager, studentDBManager, authenticationManager, recruitmentDBManager, eventsDBManager);
                     app.listen(port, '0.0.0.0', async () => {
-                        await (new StaticProvider(app, "./static", logger)).serve();
+                        await (new StaticProvider(app, config.STATIC_DIR, logger)).serve();
                         logger.info(`Server is running at port ${port}`);
                         resolve();
                     });

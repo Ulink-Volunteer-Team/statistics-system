@@ -34,19 +34,28 @@ export class StaticProvider {
 		chokidar.watch(this.path).on('all', (event, path) => {
 			if (event === 'change' || event === 'add' || event === 'unlink') {
 				this.logger.info(`StaticProvider: File ${event} detected at ${path}.`);
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				this.app._router.stack = this.app._router.stack.filter((layer: any) => {
-					return !(layer.name === 'serveStatic' && layer.regexp.test(path));
-				});
+				this.removeServes();
 				this.app.use(express.static(this.path));
 			}
 		});
 
-		// Serving index.html for routes
+		const resolvedDefaultFile = path.resolve(this.path, 'index.html');
+
 		this.app.get('*', (req, res) => {
-			const filePath = path.resolve(this.path, 'index.html');
-			res.sendFile(filePath);
-			this.logger.info(`StaticProvider: Serving ${filePath} for ${req.url}`);
+			res.sendFile(resolvedDefaultFile);
+			this.logger.info(`StaticProvider: Serving ${resolvedDefaultFile} for ${req.url}`);
+		});
+	}
+
+	/**
+	 * Removes the static file serving middleware set up by serve().
+	 *
+	 * It filters out the middleware from the Express app's stack.
+	 */
+	removeServes() {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		this.app._router.stack = this.app._router.stack.filter((layer: any) => {
+			return !(layer.name === 'serveStatic' && layer.regexp.test(path));
 		});
 	}
 }

@@ -10,8 +10,6 @@
           "run",
           "build"
         ],
-        "console": "integratedTerminal",
-        "internalConsoleOptions": "neverOpen"
       },
       {
         "name": "Debug",
