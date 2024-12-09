@@ -37,5 +37,6 @@ export const importFromExcel = APIHandlerConstructor(
 )
 
 export default [
+	importFromExcel,
 	backupToExcel
 ]
