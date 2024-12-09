@@ -83,7 +83,6 @@ export const handleApiRequest = async <PayloadType extends z.ZodType>(
 	apiSchema: PayloadType,
 	handler: RouteHandlerType<PayloadType>
 ) => {
-	console.log(req.body);
 	const sessionID = req.body.session;
 	if (!sessionID) {
 		res.status(400).json({
