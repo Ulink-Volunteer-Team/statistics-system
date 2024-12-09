@@ -23,6 +23,7 @@
     "express-rate-limit": "^7.4.1",
     "jsonwebtoken": "^9.0.2",
     "node-sqlite3-wasm": "^0.8.23",
+    "node-xlsx": "^0.24.0",
     "pino": "^9.5.0",
     "pino-http": "^10.3.0",
     "uuid": "^10.0.0",

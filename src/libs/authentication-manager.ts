@@ -43,7 +43,7 @@ export class AuthenticationManager {
 	 * @param db The DatabaseWrapper instance to be used for database operations.
 	 * @param initCallback A callback function to be called after the database table is ready.
 	 */
-	constructor(db: DatabaseWrapper, initCallback?: () => void, config: Partial<AuthenticationManagerConfig> = {}) {
+	constructor(db: DatabaseWrapper, config: Partial<AuthenticationManagerConfig> = {}, initCallback?: () => void, errorCallback?: () => void) {
 		this.db = db;
 		this.secretKey = config.secretKey || "";
 		this.saltRounds = config.saltRounds || 12;
@@ -69,8 +69,12 @@ export class AuthenticationManager {
 				type: "TEXT",
 				notNull: true
 			}
-		}).then(() => {
+		})
+		.then(() => {
 			if (initCallback) initCallback();
+		})
+		.catch(() => {
+			if (errorCallback) errorCallback();
 		});
 	}
 

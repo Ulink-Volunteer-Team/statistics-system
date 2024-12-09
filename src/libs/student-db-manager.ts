@@ -14,7 +14,7 @@ export class StudentDBManager {
 	 * @param db The DatabaseWrapper instance to be used for database operations.
 	 * @param initCallback A callback function to be called after the database table is ready.
 	 */
-	constructor(db: DatabaseWrapper, initCallback?: () => void) {
+	constructor(db: DatabaseWrapper, initCallback?: () => void, errorCallback?: () => void) {
 		this.db = db;
 		this.db.prepareTable(this.tableName, {
 			id: {
@@ -25,9 +25,14 @@ export class StudentDBManager {
 				type: "TEXT",
 				notNull: true
 			},
-		}).then(() => {
-			if (initCallback) initCallback();
-		});
+		})
+			.then(() => {
+				this.db.logger.info(`StudentDBManager: ready at table "${this.tableName}"`)
+				if (initCallback) initCallback();
+			})
+			.catch(() => {
+				if (errorCallback) errorCallback();
+			});
 	}
 
 	/**

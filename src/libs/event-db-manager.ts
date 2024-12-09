@@ -1,6 +1,7 @@
 import DatabaseWrapper from "../utils/sqlite-wrapper";
 import StudentDBManager from "./student-db-manager";
 import RecruitmentDBManager from "./recruitment-db-manager";
+import { v4 as uuidV4 } from "uuid";
 
 import { RunResult } from "node-sqlite3-wasm";
 
@@ -15,19 +16,32 @@ export class EventDBManager {
 	 * @param studentDB The StudentDBManager instance to be used for student database operations.
 	 * @param recruitmentDB The RecruitmentDBManager instance to be used for recruitment database operations.
 	 */
-	constructor(db: DatabaseWrapper, studentDB: StudentDBManager, recruitmentDB: RecruitmentDBManager) {
+	constructor(db: DatabaseWrapper, studentDB: StudentDBManager, recruitmentDB: RecruitmentDBManager, initCallback?: () => void) {
 		this.db = db;
 		this.studentDB = studentDB;
 		this.recruitmentDB = recruitmentDB;
-		this.db.db.run(`
-        CREATE TABLE IF NOT EXISTS ${this.tableName} (
-            StudentID INTEGER NOT NULL,
-            EventID INTEGER NOT NULL,
-            PRIMARY KEY (StudentID, EventID),
-            FOREIGN KEY (StudentID) REFERENCES ${this.studentDB.tableName}(id),
-            FOREIGN KEY (EventID) REFERENCES ${this.recruitmentDB.tableName}(id)
-        );`);
-		this.db.logger.info(`EventDBManager: ready at table "${this.tableName}"`);
+		this.db.prepareTable(this.tableName, {
+			id: {
+				type: "TEXT",
+				primaryKey: true,
+				notNull: true
+			},
+			studentID: {
+				type: "TEXT",
+				notNull: true
+			},
+			eventID: {
+				type: "TEXT",
+				notNull: true
+			}
+		})
+			.then(() => {
+				this.db.logger.info(`EventDBManager: ready at table "${this.tableName}"`);
+				if (initCallback) initCallback();
+			})
+			.catch(() => {
+				if (initCallback) initCallback();
+			});
 	}
 
 
@@ -49,11 +63,7 @@ export class EventDBManager {
 			const haveEvent = await this.recruitmentDB.haveRecruitmentWithID(eventID);
 			if (!haveStudent) warnings.push(`Student with id "${studentID}" does not exist`);
 			if (!haveEvent) warnings.push(`Event with id "${eventID}" does not exist`);
-			promises.push(this.db.insert(this.tableName, [{ StudentID: studentID, EventID: eventID }], {
-				conflict: {
-					action: "NOTHING",
-				}
-			}));
+			promises.push(this.db.insert(this.tableName, [{ id: uuidV4(), studentID: studentID, eventID: eventID }]));
 		}
 		const results = await Promise.all(promises);
 		if (warnings.length > 0) return Promise.reject(warnings.join("\n"));
@@ -114,12 +124,12 @@ export class EventDBManager {
 	 */
 	async getStudentIDsByRecruitmentID(eventID: string) {
 		if (!(await this.recruitmentDB.haveRecruitmentWithID(eventID))) return Promise.reject(`Event with id "${eventID}" does not exist`);
-		return (await this.db.select<{ StudentID: string }>(this.tableName, ["StudentID"], [{
-			key: "EventID",
+		return (await this.db.select<{ studentID: string }>(this.tableName, ["studentID"], [{
+			key: "eventID",
 			operator: "=",
 			compared: eventID,
 			logicalOperator: "AND"
-		}])).map(item => item.StudentID);
+		}])).map(item => item.studentID);
 	}
 
 	/**
@@ -130,12 +140,12 @@ export class EventDBManager {
 	 */
 	async getRecruitmentIDsByStudentID(studentID: string) {
 		if (!(await this.studentDB.haveStudentWithID(studentID))) return Promise.reject(`Student with id "${studentID}" does not exist in database`);
-		return (await this.db.select<{ EventID: string }>(this.tableName, ["EventID"], [{
-			key: "StudentID",
+		return (await this.db.select<{ eventID: string }>(this.tableName, ["eventID"], [{
+			key: "studentID",
 			operator: "=",
 			compared: studentID,
 			logicalOperator: "AND"
-		}])).map(item => item.EventID);
+		}])).map(item => item.eventID);
 	}
 
 	/**
@@ -146,6 +156,8 @@ export class EventDBManager {
 	 */
 	async calculateVolunteerHour(studentID: string, beginTime = 0): Promise<number> {
 		const events = (await this.getRecruitmentIDsByStudentID(studentID));
+
+		console.log(events);
 
 		let total = 0;
 		for (const eventID of events) {
@@ -166,7 +178,7 @@ export class EventDBManager {
 		if (!(await this.studentDB.haveStudentWithID(studentID))) return Promise.reject(`Student with id "${studentID}" does not exist`);
 		return this.db.delete(this.tableName, [
 			{
-				key: "StudentID",
+				key: "studentID",
 				operator: "=",
 				compared: studentID,
 				logicalOperator: "AND"
@@ -184,7 +196,7 @@ export class EventDBManager {
 		if (!(await this.recruitmentDB.haveRecruitmentWithID(eventID))) return Promise.reject(`Event with id "${eventID}" does not exist`);
 		return this.db.delete(this.tableName, [
 			{
-				key: "EventID",
+				key: "eventID",
 				operator: "=",
 				compared: eventID,
 				logicalOperator: "AND"
@@ -210,13 +222,13 @@ export class EventDBManager {
 			if (!haveEvent) warnings.push(`Event with id "${eventID}" does not exist`);
 			promises.push(this.db.delete(this.tableName, [
 				{
-					key: "StudentID",
+					key: "studentID",
 					operator: "=",
 					compared: studentID,
 					logicalOperator: "AND"
 				},
 				{
-					key: "EventID",
+					key: "eventID",
 					operator: "=",
 					compared: eventID,
 					logicalOperator: "AND"

@@ -20,7 +20,7 @@ export class RecruitmentDBManager {
 	 * @param db The DatabaseWrapper instance to be used for database operations.
 	 * @param initCallback An optional callback function to be called after the database table is prepared.
 	 */
-	constructor(db: DatabaseWrapper, initCallback?: () => void) {
+	constructor(db: DatabaseWrapper, initCallback?: () => void, errorCallback?: () => void) {
 		this.db = db;
 		db.prepareTable(this.tableName, {
 			id: {
@@ -51,9 +51,14 @@ export class RecruitmentDBManager {
 				type: "TEXT",
 				notNull: true
 			}
-		}).then(() => {
-			if (initCallback) initCallback();
-		});
+		})
+			.then(() => {
+				this.db.logger.info(`RecruitmentDBManager: ready at table "${this.tableName}"`);
+				if (initCallback) initCallback();
+			})
+			.catch(() => {
+				if (errorCallback) errorCallback();
+			});
 	}
 
 	/**

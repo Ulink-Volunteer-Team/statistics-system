@@ -1,4 +1,5 @@
 import SessionManger, { handshake as handshakeBase } from '@/libs/session-manager';
+import DatabaseWrapper from '@/utils/sqlite-wrapper';
 import AuthenticationManager from '@/libs/authentication-manager';
 import RecruitmentDBManager from '@/libs/recruitment-db-manager';
 import StudentDBManager from '@/libs/student-db-manager';
@@ -12,7 +13,8 @@ export type RouteDataAccessType = {
 	studentDBManager: StudentDBManager,
 	authenticationManager: AuthenticationManager,
 	recruitmentDBManager: RecruitmentDBManager,
-	eventsDBManager: EventDBManager
+	eventsDBManager: EventDBManager,
+	database: DatabaseWrapper
 }
 
 export type ServerRouteType = (req: Request, res: Response, sessionManager: SessionManger, dataSource: RouteDataAccessType) => Promise<void>;
@@ -81,6 +83,7 @@ export const handleApiRequest = async <PayloadType extends z.ZodType>(
 	apiSchema: PayloadType,
 	handler: RouteHandlerType<PayloadType>
 ) => {
+	console.log(req.body);
 	const sessionID = req.body.session;
 	if (!sessionID) {
 		res.status(400).json({
